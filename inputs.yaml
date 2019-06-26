@@ -1,0 +1,11 @@
+input_name: '27x27x27'
+
+nx: 27
+ny: 27
+nz: 27
+
+Crs:
+  Cr1: [3,3,3]
+  Cr2: [9,9,9]
+
+rodar_monofasico: False

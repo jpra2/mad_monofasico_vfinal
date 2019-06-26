@@ -1,0 +1,37 @@
+input_file: '27x27x27'
+
+gravity: False
+# adicionar o efeito da gravidade
+MPFA: False
+# estruturado ou nao
+
+ADM: False
+# solucao multiescala ADM
+
+ler_anterior: False
+converter_unidades: True
+loops_de_cada_rodada: 1
+loops_antes_de_reiniciar: 1
+numero_de_impressoes: 1
+
+dados_bifasico:
+  Sor: 0.2
+  Swc: 0.2
+  mi_w: 0.001
+  mi_o: 0.005
+  gama_w: 10.0
+  gama_o: 9.0
+  nwater: 2.0
+  noil: 2.0
+  loops: 1000
+  total_time: 1000
+  cfl: 0.5
+
+dados_monofasico:
+  gama: 10.0
+  mi: 1.0
+
+tempos_vpi_impressao: [0.25, 0.5, 0.75, 0.8, 0.9]
+contar_loop: False
+contar_tempo: False
+imprimir_sempre: True
