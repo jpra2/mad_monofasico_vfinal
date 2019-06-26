@@ -6,6 +6,7 @@ from pymoab import types, rng
 
 
 class SolAdm:
+
     def __init__(self, mb, wirebasket_elems, wirebasket_numbers, tags, all_volumes, faces_adjs_by_dual, intern_adjs_by_dual):
         self.mb = mb
         self.wirebasket_elems = wirebasket_elems
@@ -28,14 +29,14 @@ class SolAdm:
 
     def get_AMS_to_ADM_dict(self):
 
-        ID_ADM = self,mb.tag_get_data(self.tags['l1_ID'], self.vertices, flat=True)
+        ID_ADM = self.mb.tag_get_data(self.tags['l1_ID'], self.vertices, flat=True)
         ID_AMS = self.mb.tag_get_data(self.tags['FINE_TO_PRIMAL1_CLASSIC'], self.vertices, flat=True)
         self.AMS_TO_ADM = dict(zip(ID_AMS, ID_ADM))
 
     def get_COL_TO_ADM_2(self):
 
-        ID_AMS = mb.tag_get_data(self.tags['FINE_TO_PRIMAL2_CLASSIC'], self.ver, flat=True)
-        ID_ADM = mb.tag_get_data(self.tags['l2_ID'], self.ver, flat=True)
+        ID_AMS = self.mb.tag_get_data(self.tags['FINE_TO_PRIMAL2_CLASSIC'], self.ver, flat=True)
+        ID_ADM = self.mb.tag_get_data(self.tags['l2_ID'], self.ver, flat=True)
         self.COL_TO_ADM_2 = dict(zip(ID_AMS, ID_ADM))
 
     def get_G_nv1(self):
@@ -56,7 +57,7 @@ class SolAdm:
 
         for i in range(nint):
             v=inte[i]
-            ID_AMS = int(mb.tag_get_data(fine_to_primal1_classic_tag,v))
+            ID_AMS = int(self.mb.tag_get_data(fine_to_primal1_classic_tag,v))
             lines.append(i)
             cols.append(ID_AMS)
             data.append(1)
@@ -64,7 +65,7 @@ class SolAdm:
         i=0
         for i in range(nfac):
             v=fac[i]
-            ID_AMS=int(mb.tag_get_data(fine_to_primal1_classic_tag,v))
+            ID_AMS=int(self.mb.tag_get_data(fine_to_primal1_classic_tag,v))
             lines.append(nint+i)
             cols.append(ID_AMS)
             data.append(1)
@@ -72,7 +73,7 @@ class SolAdm:
         i=0
         for i in range(nare):
             v=are[i]
-            ID_AMS=int(mb.tag_get_data(fine_to_primal1_classic_tag,v))
+            ID_AMS=int(self.mb.tag_get_data(fine_to_primal1_classic_tag,v))
             lines.append(nint+nfac+i)
             cols.append(ID_AMS)
             data.append(1)
@@ -81,7 +82,7 @@ class SolAdm:
 
         for i in range(nver):
             v=ver[i]
-            ID_AMS=int(mb.tag_get_data(fine_to_primal1_classic_tag,v))
+            ID_AMS=int(self.mb.tag_get_data(fine_to_primal1_classic_tag,v))
             lines.append(nint+nfac+nare+i)
             cols.append(ID_AMS)
             data.append(1)
@@ -99,7 +100,6 @@ class SolAdm:
 
     def get_OR1_AMS(self):
 
-        for v in all_volumes:
         elem_Global_ID = self.mb.tag_get_data(self.tags['ID_reord_tag'], self.all_volumes, flat=True)
         AMS_ID = self.mb.tag_get_data(self.tags['FINE_TO_PRIMAL1_CLASSIC'], self.all_volumes, flst=True)
         lines = AMS_ID
@@ -111,9 +111,10 @@ class SolAdm:
         self.As = oth.get_Tmod_by_sparse_wirebasket_matrix(Tf, self.wirebasket_numbers[0])
 
     def get_OP1_AMS(self):
-        self.OP1_AMS = prolongation. get_op_AMS_TPFA_top(self.mb, self.faces_adjs_by_dual, self.intern_adjs_by_dual, self.ni, self.nf, self.tags['MOBI_IN_FACES'], self.As)
+        self.OP1_AMS = prolongation.get_op_AMS_TPFA_top(self.mb, self.faces_adjs_by_dual, self.intern_adjs_by_dual, self.ni, self.nf, self.tags['MOBI_IN_FACES'], self.As)
 
     def get_OP2_AMS(self):
+        pass
 
     def get_n1adm_and_n2adm_and_elemsnv0(self):
         self.n1_adm = self.mb.tag_get_data(tags_1['l1_ID'], all_volumes, flat=True).max() + 1

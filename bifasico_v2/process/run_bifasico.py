@@ -13,7 +13,6 @@ bifasico_sol_direta_dir = os.path.join(bifasico_dir, 'sol_direta')
 bifasico_sol_multiescala_dir = os.path.join(bifasico_dir, 'sol_multiescala')
 utils_dir = os.path.join(parent_parent_dir, 'utils')
 output_dir = os.path.join(parent_parent_dir, 'output')
-
 verif = True
 loop = mesh.ultimo_loop
 n_impressoes = int(mesh.data_loaded['numero_de_impressoes'])
@@ -30,8 +29,9 @@ loops2 = 0
 t2 = 0.0
 
 if mesh.ADM:
-    os.chdir(bifasico_sol_multiescala_dir)
+    os.chdir(parent_parent_dir)
     from solucao.sol_adm import SolAdm
+    os.chdir(bifasico_sol_multiescala_dir)
 
     sol = SolAdm(mesh.mb, mesh.wirebasket_elems, mesh.wirebasket_numbers, mesh.tags, mesh.all_volumes, mesh.faces_adjs_by_dual, mesh.intern_adjs_by_dual)
     import pdb; pdb.set_trace()
