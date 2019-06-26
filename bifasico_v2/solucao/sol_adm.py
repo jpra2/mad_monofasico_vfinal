@@ -57,7 +57,7 @@ class SolAdm:
 
         for i in range(nint):
             v=inte[i]
-            ID_AMS = int(self.mb.tag_get_data(fine_to_primal1_classic_tag,v))
+            ID_AMS = int(self.mb.tag_get_data(fine_to_primal1_classic_tag,int(v)))
             lines.append(i)
             cols.append(ID_AMS)
             data.append(1)
@@ -65,7 +65,7 @@ class SolAdm:
         i=0
         for i in range(nfac):
             v=fac[i]
-            ID_AMS=int(self.mb.tag_get_data(fine_to_primal1_classic_tag,v))
+            ID_AMS=int(self.mb.tag_get_data(fine_to_primal1_classic_tag,int(v)))
             lines.append(nint+i)
             cols.append(ID_AMS)
             data.append(1)
@@ -73,7 +73,7 @@ class SolAdm:
         i=0
         for i in range(nare):
             v=are[i]
-            ID_AMS=int(self.mb.tag_get_data(fine_to_primal1_classic_tag,v))
+            ID_AMS=int(self.mb.tag_get_data(fine_to_primal1_classic_tag,int(v)))
             lines.append(nint+nfac+i)
             cols.append(ID_AMS)
             data.append(1)
@@ -82,7 +82,7 @@ class SolAdm:
 
         for i in range(nver):
             v=ver[i]
-            ID_AMS=int(self.mb.tag_get_data(fine_to_primal1_classic_tag,v))
+            ID_AMS=int(self.mb.tag_get_data(fine_to_primal1_classic_tag,int(v)))
             lines.append(nint+nfac+nare+i)
             cols.append(ID_AMS)
             data.append(1)
@@ -101,7 +101,7 @@ class SolAdm:
     def get_OR1_AMS(self):
 
         elem_Global_ID = self.mb.tag_get_data(self.tags['ID_reord_tag'], self.all_volumes, flat=True)
-        AMS_ID = self.mb.tag_get_data(self.tags['FINE_TO_PRIMAL1_CLASSIC'], self.all_volumes, flst=True)
+        AMS_ID = self.mb.tag_get_data(self.tags['FINE_TO_PRIMAL1_CLASSIC'], self.all_volumes, flat=True)
         lines = AMS_ID
         cols = elem_Global_ID
         data = np.ones(len(self.all_volumes))
