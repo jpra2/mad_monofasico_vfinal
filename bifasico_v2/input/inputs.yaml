@@ -1,8 +1,8 @@
 input_file: '27x27x27'
 
-gravity: False
+gravity: True
 # adicionar o efeito da gravidade
-MPFA: False
+MPFA: True
 # estruturado ou nao
 
 ADM: False
@@ -10,9 +10,9 @@ ADM: False
 
 ler_anterior: False
 converter_unidades: True
-loops_de_cada_rodada: 1
+loops_de_cada_rodada: 10
 loops_antes_de_reiniciar: 1
-numero_de_impressoes: 1
+numero_de_impressoes: 5
 
 dados_bifasico:
   Sor: 0.2

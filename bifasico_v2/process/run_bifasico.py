@@ -80,7 +80,7 @@ elif not mesh.ADM:
             bif_elems.set_lamb()
             bif_elems.set_mobi_faces()
 
-        if contador % interv_loops == 0:
+        if contador % interv_loops == 0 or loop == 1:
             cont_imp += 1
             bif_elems.print_hist(loop)
             mesh.mb.write_file(ext_h5m)
@@ -94,7 +94,6 @@ elif not mesh.ADM:
             if cont_imp >= n_impressoes:
                 sys.exit(0)
 
-        import pdb; pdb.set_trace()
 
 import pdb; pdb.set_trace()
 

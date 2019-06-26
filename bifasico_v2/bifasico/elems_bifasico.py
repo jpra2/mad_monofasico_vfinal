@@ -63,7 +63,7 @@ class BifasicElems:
         # hs = maxs - mins
         hs = np.array([6.0959998, 3.0479999, 0.60959998])
         yyy = mb.tag_get_data(tags['KHARM'], all_faces_in, flat=True)
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         self.hs = hs
         # self.Areas = np.array([hs[1]*hs[2], hs[0]*hs[2], hs[0]*hs[1]])
         vol = hs[0]*hs[1]*hs[2]
@@ -85,6 +85,10 @@ class BifasicElems:
             self.set_lamb()
             self.set_mobi_faces_ini()
         pass
+
+        phis0 = self.mb.tag_get_data(self.tags['PHI'], np.array([Adjs[:,0]]), flat=True)
+        phis1 = self.mb.tag_get_data(self.tags['PHI'], np.array([Adjs[:,1]]), flat=True)
+        self.phis_tempo = np.array([phis0, phis1]).max(axis=0)
 
     def load_sats_ini(self, mb, sat_tag):
         self.all_sats = mb.tag_get_data(sat_tag, self.all_volumes, flat=True)
@@ -378,63 +382,7 @@ class BifasicElems:
 
         return Tf2, b2
 
-    def calc_cfl(self):
-        """
-        cfl usando fluxo em cada volume
-        """
-
-        lim_sup = 1e40
-        self.cfl = self.cfl_ini
-        qs = self.flux_in_faces
-        dfdss = self.all_dfds
-        Adjs = self.Adjs
-        all_volumes = self.all_volumes
-        faces_volumes = self.faces_volumes
-
-        delta_ts = np.zeros(len(self.all_volumes))
-        phis = self.phis
-        Vs = self.Vs
-        map_faces = self.map_faces_in
-
-        for i, v in enumerate(all_volumes):
-            V = Vs[i]
-            phi = phis[i]
-            if phi == 0:
-                delta_ts[i] = lim_sup
-                continue
-            faces = faces_volumes[i]
-            ids_faces = [map_faces[f] for f in faces]
-            q_faces = qs[ids_faces]
-            dfdss_faces = dfdss[ids_faces]
-            qmax = q_faces.max()
-            ind = np.where(q_faces == qmax)[0]
-            dfds = dfdss_faces[ind][0]
-            if dfds == 0.0:
-                dt1 = lim_sup
-            else:
-                qmax = abs(qmax)
-                dt1 = self.cfl*(phi*V)/float(qmax*dfds)
-                if dt1 < 0:
-                    print('erro')
-                    import pdb; pdb.set_trace()
-
-            dfds_max = dfdss_faces.max()
-            if dfds_max == 0:
-                dt2 = dt1
-            else:
-                ind = np.where(dfdss_faces == dfds_max)[0]
-                q2 = abs(q_faces[ind][0])
-                dt2 = self.cfl*(phi*V)/float(q2*dfds_max)
-                if dt2 < 0:
-                    print('erro')
-                    import pdb; pdb.set_trace()
-
-            delta_ts[i] = min([dt1, dt2])
-
-        self.delta_t = delta_ts.min()
-        # self.flux_total_producao = self.mb.tag_get_data(self.tags['TOTAL_FLUX'], self.wells_producer, flat=True).sum()
-
-    def calc_cfl_v2(self):
+    def calc_cfl_dep0(self):
         """
         cfl usando fluxo em cada volume
         """
@@ -490,6 +438,29 @@ class BifasicElems:
         self.delta_t = delta_ts.min()
         import pdb; pdb.set_trace()
         # self.flux_total_producao = self.mb.tag_get_data(self.tags['TOTAL_FLUX'], self.wells_producer, flat=True).sum()
+
+    def calc_cfl(self):
+        """
+        cfl usando fluxo em cada volume
+        """
+
+        lim_sup = 1e40
+        self.cfl = self.cfl_ini
+        qs = self.flux_in_faces
+        dfdss = self.all_dfds
+        Adjs = self.Adjs
+        all_volumes = self.all_volumes
+        faces_volumes = self.faces_volumes
+
+        phis = self.phis
+        Vs = self.Vs[0]
+        map_faces = self.map_faces_in
+
+        q_dfds = np.absolute(qs*dfdss)
+        phis = self.phis_tempo
+        dts = self.cfl*(phis*Vs)/(q_dfds)
+
+        self.delta_t = dts.min()
 
     def set_solutions1(self):
 
