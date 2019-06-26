@@ -21,4 +21,4 @@ if rodar_monofasico:
         shutil.copy(name, destino)
 
 os.system('python rodar_bifasico.py')
-#oioioi
+#oi
