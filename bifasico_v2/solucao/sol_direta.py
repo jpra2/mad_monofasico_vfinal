@@ -7,8 +7,9 @@ class SolDireta:
     def __init__(self):
         pass
 
-    def solucao_pressao(self, Tf, b):
-        return oth.get_solution(Tf, b)
+    def solucao_pressao(self, Tf2, b2, loop, Tf):
+        self.Pf = oth.get_solution(Tf2, b2)
+        return self.Pf
 
     def calculate_total_flux(self, ids0, ids1, mobi_in_faces, s_grav_f, Pf, fw_in_faces, volumes, gravity):
 

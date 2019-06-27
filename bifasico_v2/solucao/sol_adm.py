@@ -3,6 +3,7 @@ import scipy.sparse as sp
 from utils.others_utils import OtherUtils as oth
 from utils import prolongation_ams as prolongation
 from pymoab import types, rng
+import time
 
 
 class SolAdm:
@@ -26,6 +27,7 @@ class SolAdm:
         self.get_G_nv1()
         self.get_OR1_AMS()
         self.get_OR2_AMS()
+        self.get_n1adm_and_n2adm_and_elemsnv0()
 
     def get_AMS_to_ADM_dict(self):
 
@@ -96,7 +98,9 @@ class SolAdm:
         lines = ID_AMS_2
         cols = ID_AMS_1
         data = np.ones(len(self.vertices))
-        self.OR2_AMS = sp.csc_matrix((data,(lines,cols)),shape=(nver,self.nv))
+        nver = self.wirebasket_numbers[1][3]
+        nv = self.wirebasket_numbers[0][3]
+        self.OR2_AMS = sp.csc_matrix((data,(lines,cols)),shape=(nver,nv))
 
     def get_OR1_AMS(self):
 
@@ -105,7 +109,7 @@ class SolAdm:
         lines = AMS_ID
         cols = elem_Global_ID
         data = np.ones(len(self.all_volumes))
-        self.OR1_AMS = sp.csc_matrix((data,(lines,cols)),shape=(len(self.vetices),len(self.all_volumes)))
+        self.OR1_AMS = sp.csc_matrix((data,(lines,cols)),shape=(len(self.vertices),len(self.all_volumes)))
 
     def get_As(self, Tf):
         self.As = oth.get_Tmod_by_sparse_wirebasket_matrix(Tf, self.wirebasket_numbers[0])
@@ -117,6 +121,9 @@ class SolAdm:
         pass
 
     def get_n1adm_and_n2adm_and_elemsnv0(self):
+        tags_1 = self.tags
+        all_volumes = self.all_volumes
+
         self.n1_adm = self.mb.tag_get_data(tags_1['l1_ID'], all_volumes, flat=True).max() + 1
         self.n2_adm = self.mb.tag_get_data(tags_1['l2_ID'], all_volumes, flat=True).max() + 1
         self.elems_nv0 = self.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([self.tags['l3_ID']]), np.array([1]))
@@ -141,7 +148,7 @@ class SolAdm:
 
         IDs_ADM1=mb.tag_get_data(dict_tags['l1_ID'],nivel_0, flat=True)
 
-        m=find(OP1)
+        m=sp.find(OP1)
         l1=m[0]
         c1=m[1]
         d1=m[2]
@@ -155,7 +162,7 @@ class SolAdm:
         cols=np.concatenate([cols,ID_ADM1])
         data=np.concatenate([data,d1])
 
-        opad1=csc_matrix((data,(lines,cols)),shape=(len(all_volumes),n1_adm))
+        opad1=sp.csc_matrix((data,(lines,cols)),shape=(len(all_volumes),n1_adm))
         print("opad1",time.time()-ta1)
         OP_ADM=opad1
 
@@ -175,11 +182,47 @@ class SolAdm:
         cols = mb.tag_get_data(dict_tags['ID_reord_tag'], all_volumes, flat=True)
         lines = mb.tag_get_data(dict_tags['l1_ID'], all_volumes, flat=True)
         data = np.ones(len(lines))
-        OR_ADM=csc_matrix((data,(lines,cols)),shape=(n1_adm,len(all_volumes)))
+        OR_ADM=sp.csc_matrix((data,(lines,cols)),shape=(n1_adm,len(all_volumes)))
 
         # return OP_ADM, OR_ADM
         self.OP1_ADM = OP_ADM
         self.OR1_ADM = OR_ADM
+
+    def organize_OP1_ADM_v2(self):
+        PAD = self.OP1_AMS
+
+        torganize=time.time()
+        OP4=PAD.copy()
+        mver=M1.mb.create_meshset()
+        M1.mb.add_entities(mver,vertices)
+        vnv1=M1.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([L3_ID_tag]), np.array([2]))
+        vnv2=M1.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([L3_ID_tag]), np.array([3]))
+        vs=rng.unite(vnv1,vnv2)
+        IDs_AMS_vs=M1.mb.tag_get_data(M1.ID_reordenado_tag,vs,flat=True)
+        IDs_ADM_vs=IDs_AMS_vs
+        lines=IDs_ADM_vs
+        cols=IDs_AMS_vs
+        data=np.ones(len(lines))
+        permut_elim=csc_matrix((data,(lines,cols)),shape=(len(M1.all_volumes),len(M1.all_volumes)))
+
+        IDs_AMS_vert=M1.mb.tag_get_data(fine_to_primal1_classic_tag,vertices,flat=True)
+        IDs_ADM_vert=M1.mb.tag_get_data(L1_ID_tag,vertices,flat=True)
+        lines=IDs_AMS_vert
+        cols=IDs_ADM_vert
+        data=np.ones(len(lines))
+        permut=csc_matrix((data,(lines,cols)),shape=(len(vertices),n1))
+        vnv0=M1.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([L3_ID_tag]), np.array([1]))
+        IDs_ADM_vnv0=M1.mb.tag_get_data(M1.ID_reordenado_tag,vnv0,flat=True)
+        IDs_AMS_vnv0=M1.mb.tag_get_data(L1_ID_tag,vnv0,flat=True)
+        lines=IDs_ADM_vnv0
+        cols=IDs_AMS_vnv0
+        data=np.ones(len(lines))
+
+        somar=csc_matrix((data,(lines,cols)),shape=(len(M1.all_volumes),n1))
+
+        operador1=permut_elim*PAD*permut+somar
+        #print(time.time()-torganize,"organize novo!!!")
+        return operador1
 
     def organize_OP2_ADM(self, OP2_AMS):
         t0 = time.time()
@@ -225,7 +268,8 @@ class SolAdm:
                     for i in range(OP2_AMS[ID_AMS].shape[1]):
                         p=OP2_AMS[ID_AMS, i]
                         if p>0:
-                            id_ADM=self.COL_TO_ADM_2[str(i)]
+                            # id_ADM=self.COL_TO_ADM_2[str(i)]
+                            id_ADM=self.COL_TO_ADM_2[i]
                             lines.append(ID_global)
                             cols.append(id_ADM)
                             data.append(float(p))
@@ -262,7 +306,14 @@ class SolAdm:
         self.organize_OP1_ADM()
         self.get_OPs2_ADM()
 
-    def solve_ADM_system(self, Tf2, b2):
+    def solucao_pressao(self, Tf2, b2, loop, Tf):
+        self.get_As(Tf)
+        self.get_ops_ADM_seq()
+        self.solve_adm_system(Tf2, b2)
+
+        return self.Pf
+
+    def solve_adm_system(self, Tf2, b2):
         OR1_ADM = self.OR1_ADM
         OP1_ADM = self.OP1_ADM
         OR2_ADM = self.OR2_ADM
@@ -282,4 +333,5 @@ class SolAdm:
         PC2_ADM = oth.get_solution(T2_ADM, b2_ADM)
         Pms2 = OP2_ADM.dot(PC2_ADM)
         Pms2 = OP1_ADM.dot(Pms2)
+        self.Pf = Pms2
         mb.tag_set_data(tags['PMS2'], wirebasket_elems_nv0, Pms2)
