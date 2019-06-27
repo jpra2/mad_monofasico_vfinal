@@ -32,7 +32,7 @@ if mesh.ADM:
     os.chdir(parent_parent_dir)
     from solucao.sol_adm import SolAdm
     os.chdir(bifasico_sol_multiescala_dir)
-    sol = SolAdm(mesh.mb, mesh.wirebasket_elems, mesh.wirebasket_numbers, mesh.tags, mesh.all_volumes, mesh.faces_adjs_by_dual, mesh.intern_adjs_by_dual)
+    sol = SolAdm(mesh.mb, mesh.wirebasket_elems, mesh.wirebasket_numbers, mesh.tags, mesh.all_volumes, mesh.faces_adjs_by_dual, mesh.intern_adjs_by_dual, mesh.mv, mesh.mtu, mesh)
     inter_name = 'sol_multiescala_'
 
 elif not mesh.ADM:
@@ -44,11 +44,9 @@ elif not mesh.ADM:
 while verif:
     contador += 1
 
-
     t0 = time.time()
     bif_elems.get_Tf_and_b()
     bif_elems.Pf = sol.solucao_pressao(bif_elems.Tf2, bif_elems.b2, loop, bif_elems.Tf)
-    import pdb; pdb.set_trace()
     mobi_in_faces = bif_elems.all_mobi_in_faces
     s_grav_f = bif_elems.all_s_gravs
     Pf = bif_elems.Pf
@@ -56,6 +54,7 @@ while verif:
     volumes = mesh.all_volumes
     gravity = mesh.gravity
     bif_elems.fluxos, bif_elems.fluxos_w, bif_elems.flux_in_faces, bif_elems.flux_w_in_faces, bif_elems.fluxo_grav_volumes = sol.calculate_total_flux(ids0, ids1, mobi_in_faces, s_grav_f, Pf, fw_in_faces, volumes, gravity)
+    import pdb; pdb.set_trace()
     t1 = time.time()
     dt = t1-t0
     bif_elems.set_solutions1()

@@ -8,7 +8,7 @@ import time
 
 class SolAdm:
 
-    def __init__(self, mb, wirebasket_elems, wirebasket_numbers, tags, all_volumes, faces_adjs_by_dual, intern_adjs_by_dual):
+    def __init__(self, mb, wirebasket_elems, wirebasket_numbers, tags, all_volumes, faces_adjs_by_dual, intern_adjs_by_dual, mv, mtu, mesh):
         self.mb = mb
         self.wirebasket_elems = wirebasket_elems
         self.wirebasket_numbers = wirebasket_numbers
@@ -21,13 +21,24 @@ class SolAdm:
         self.ni = len(self.wirebasket_elems[0][0])
         self.nf = len(self.wirebasket_elems[0][1])
         self.wirebasket_elems_nv0 = np.concatenate(wirebasket_elems[0])
+        self.mv = mv
+        self.mtu = mtu
+        self.gravity = mesh.gravity
+        self.all_boundary_faces = mesh.all_boundary_faces
+        self.bound_faces_nv = mesh.bound_faces_nv
+        self.all_faces_in = mesh.all_faces_in
+        self.av = mesh.vv
+
+        meshset_vertices_nv2 = mb.create_meshset()
+        mb.add_entities(meshset_vertices_nv2, wirebasket_elems[1][3])
+        self.mv2 = meshset_vertices_nv2
 
         self.get_AMS_to_ADM_dict()
         self.get_COL_TO_ADM_2()
         self.get_G_nv1()
         self.get_OR1_AMS()
         self.get_OR2_AMS()
-        self.get_n1adm_and_n2adm_and_elemsnv0()
+        self.get_n1adm_and_n2adm_and_finos0()
 
     def get_AMS_to_ADM_dict(self):
 
@@ -117,16 +128,20 @@ class SolAdm:
     def get_OP1_AMS(self):
         self.OP1_AMS = prolongation.get_op_AMS_TPFA_top(self.mb, self.faces_adjs_by_dual, self.intern_adjs_by_dual, self.ni, self.nf, self.tags['MOBI_IN_FACES'], self.As)
 
-    def get_OP2_AMS(self):
-        pass
-
-    def get_n1adm_and_n2adm_and_elemsnv0(self):
+    def get_n1adm_and_n2adm_and_finos0(self):
         tags_1 = self.tags
         all_volumes = self.all_volumes
 
         self.n1_adm = self.mb.tag_get_data(tags_1['l1_ID'], all_volumes, flat=True).max() + 1
         self.n2_adm = self.mb.tag_get_data(tags_1['l2_ID'], all_volumes, flat=True).max() + 1
-        self.elems_nv0 = self.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([self.tags['l3_ID']]), np.array([1]))
+        self.finos0 = self.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([self.tags['l3_ID']]), np.array([1]))
+
+    def get_n1adm_and_n2adm(self):
+        tags_1 = self.tags
+        all_volumes = self.all_volumes
+
+        self.n1_adm = self.mb.tag_get_data(tags_1['l1_ID'], all_volumes, flat=True).max() + 1
+        self.n2_adm = self.mb.tag_get_data(tags_1['l2_ID'], all_volumes, flat=True).max() + 1
 
     def organize_OP1_ADM(self):
         OP1_AMS = self.OP1_AMS
@@ -335,3 +350,136 @@ class SolAdm:
         Pms2 = OP1_ADM.dot(Pms2)
         self.Pf = Pms2
         mb.tag_set_data(tags['PMS2'], wirebasket_elems_nv0, Pms2)
+
+    def calculate_total_flux(self, ids0, ids1, mobi_in_faces, s_grav_f, Pf, fw_in_faces, volumes, gravity):
+        tags_1 = self.tags
+        mb = self.mb
+        meshset_vertices = self.mv
+        meshset_vertices_nv2 = self.mv2
+
+        elems_nv0 = mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([tags_1['l3_ID']]), np.array([1]))
+        vertices_nv1 = mb.get_entities_by_type_and_tag(meshset_vertices, types.MBHEX, np.array([tags_1['l3_ID']]), np.array([2]))
+        vertices_nv2 = mb.get_entities_by_type_and_tag(meshset_vertices_nv2, types.MBHEX, np.array([tags_1['l3_ID']]), np.array([3]))
+        k = 0
+        self.calc_pcorr_nv(vertices_nv1, k, tags_1['FINE_TO_PRIMAL1_CLASSIC'])
+        k = 1
+        self.calc_pcorr_nv(vertices_nv2, k, tags_1['FINE_TO_PRIMAL2_CLASSIC'])
+
+        
+
+        fluxos = np.zeros(len(self.all_volumes))
+        fluxos_w = np.zeros(len(self.all_volumes))
+        fluxo_grav_volumes = np.zeros(len(self.all_volumes))
+        flux_in_faces = np.zeros(len(self.all_faces_in))
+        flux_w_in_faces = np.zeros(len(self.all_faces_in))
+
+        import pdb; pdb.set_trace()
+
+        return fluxos, fluxos_w, flux_in_faces, flux_w_in_faces, fluxo_grav_volumes
+
+    def calc_pcorr_nv(self, vertices_nv, k, tag_primal_classic):
+        tags_1 = self.tags
+        mb = self.mb
+        mtu = self.mtu
+        boundary_faces = self.all_boundary_faces
+        bound_faces_nv = self.bound_faces_nv
+
+        for vert in vertices_nv:
+            t00 = time.time()
+            primal_id = mb.tag_get_data(tag_primal_classic, vert, flat=True)[0]
+            elems_in_meshset = mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([tag_primal_classic]), np.array([primal_id]))
+            faces = mtu.get_bridge_adjacencies(elems_in_meshset, 3, 2)
+            faces = rng.subtract(faces, boundary_faces)
+            faces_boundary = rng.intersect(faces, bound_faces_nv[k])
+            if len(faces_boundary) < 1:
+                import pdb; pdb.set_trace()
+            t01 = time.time()
+            t02 = time.time()
+            self.calculate_pcorr(elems_in_meshset, vert, faces_boundary, faces, k)
+            # bif_utils.calculate_pcorr_v4(elems_in_meshset, tags_1['PCORR2'], tags_1)
+            # t03 = time.time()
+            # bif_utils.set_flux_pms_meshsets(elems_in_meshset, faces, faces_boundary, tags_1['PMS2'], tags_1['PCORR2'])
+            # t04 = time.time()
+            # dt0 = t01 - t00
+            # dt1= t03 - t02
+            # dt2= t04 - t03
+            # dtt = t04 - t01
+
+    def calculate_pcorr(self, elems_in_meshset, vertice, faces_boundary, faces, k):
+
+        mb = self.mb
+        mobi_in_faces_tag = self.tags['MOBI_IN_FACES']
+        pms_tag = self.tags['PMS2']
+        s_grav_tag = self.tags['S_GRAV']
+        pcorr_tag = self.tags['PCORR2']
+
+        allmobis = mb.tag_get_data(mobi_in_faces_tag, faces, flat=True)
+        try:
+            vols3 = self.mtu.get_bridge_adjacencies(faces_boundary, 2, 3)
+        except:
+            import pdb; pdb.set_trace()
+
+        vols_inter = rng.subtract(vols3, elems_in_meshset)
+        pms_vols3 = self.mb.tag_get_data(pms_tag, vols3, flat=True)
+        map_pms_vols3 = dict(zip(vols3, pms_vols3))
+        del pms_vols3
+
+        volumes_2 = self.mtu.get_bridge_adjacencies(elems_in_meshset, 2, 3)
+        if self.gravity:
+            s_gravs = mb.tag_get_data(s_grav_tag, faces, flat=True)
+        else:
+            s_gravs = np.zeros(len(faces))
+        n = len(elems_in_meshset)
+
+        map_local = dict(zip(elems_in_meshset, range(n)))
+        lines = []
+        cols = []
+        data = []
+        b = np.zeros(n)
+        Adjs = [self.mb.get_adjacencies(face, 3) for face in faces]
+        faces_in = rng.subtract(faces, faces_boundary)
+        map_id_faces = dict(zip(faces, range(len(faces))))
+
+        for face in faces_in:
+            id_face = map_id_faces[face]
+            mobi = allmobis[id_face]
+            s_g = -s_gravs[id_face]
+            id_face = map_id_faces[face]
+            elem0 = Adjs[id_face][0]
+            elem1 = Adjs[id_face][1]
+            id0 = map_local[elem0]
+            id1 = map_local[elem1]
+            b[id0] += s_g
+            b[id1] -= s_g
+            lines += [id0, id1]
+            cols += [id1, id0]
+            data += [mobi, mobi]
+
+        for face in faces_boundary:
+            id_face = map_id_faces[face]
+            mobi = allmobis[id_face]
+            s_g = -s_gravs[id_face]
+            elem0 = Adjs[id_face][0]
+            elem1 = Adjs[id_face][1]
+            vvv = True
+            try:
+                id = map_local[elem0]
+            except KeyError:
+                id = map_local[elem1]
+                vvv = False
+            flux = -(map_pms_vols3[elem1] - map_pms_vols3[elem0])*mobi
+            if vvv:
+                b[id] += s_g + flux
+            else:
+                b[id] -= s_g + flux
+
+        T = sp.csc_matrix((data,(lines,cols)),shape=(n, n))
+        T = T.tolil()
+        d1 = np.array(T.sum(axis=1)).reshape(1, n)[0]*(-1)
+        T.setdiag(d1)
+
+        d_vols = rng.Range(vertice)
+        map_values = dict(zip(d_vols, mb.tag_get_data(pms_tag, d_vols, flat=True)))
+        T, b = oth.set_boundary_dirichlet_matrix(map_local, map_values, b, T)
+        x = oth.get_solution(T, b)
+        mb.tag_set_data(pcorr_tag, elems_in_meshset, x)
