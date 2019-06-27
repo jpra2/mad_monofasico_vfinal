@@ -356,6 +356,8 @@ class SolAdm:
         mb = self.mb
         meshset_vertices = self.mv
         meshset_vertices_nv2 = self.mv2
+        mtu = self.mtu
+        boundary_faces = self.all_boundary_faces
 
         elems_nv0 = mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([tags_1['l3_ID']]), np.array([1]))
         vertices_nv1 = mb.get_entities_by_type_and_tag(meshset_vertices, types.MBHEX, np.array([tags_1['l3_ID']]), np.array([2]))
@@ -365,7 +367,10 @@ class SolAdm:
         k = 1
         self.calc_pcorr_nv(vertices_nv2, k, tags_1['FINE_TO_PRIMAL2_CLASSIC'])
 
-        
+        faces = mtu.get_bridge_adjacencies(elems_nv0, 3, 2)
+        faces = rng.subtract(faces, boundary_faces)
+        self.set_flux_pms_elems_nv0(elems_nv0, faces, tags_1['PMS2'])
+
 
         fluxos = np.zeros(len(self.all_volumes))
         fluxos_w = np.zeros(len(self.all_volumes))
@@ -396,14 +401,7 @@ class SolAdm:
             t01 = time.time()
             t02 = time.time()
             self.calculate_pcorr(elems_in_meshset, vert, faces_boundary, faces, k)
-            # bif_utils.calculate_pcorr_v4(elems_in_meshset, tags_1['PCORR2'], tags_1)
-            # t03 = time.time()
-            # bif_utils.set_flux_pms_meshsets(elems_in_meshset, faces, faces_boundary, tags_1['PMS2'], tags_1['PCORR2'])
-            # t04 = time.time()
-            # dt0 = t01 - t00
-            # dt1= t03 - t02
-            # dt2= t04 - t03
-            # dtt = t04 - t01
+            self.set_flux_pms_meshsets(elems_in_meshset, faces, faces_boundary)
 
     def calculate_pcorr(self, elems_in_meshset, vertice, faces_boundary, faces, k):
 
@@ -483,3 +481,145 @@ class SolAdm:
         T, b = oth.set_boundary_dirichlet_matrix(map_local, map_values, b, T)
         x = oth.get_solution(T, b)
         mb.tag_set_data(pcorr_tag, elems_in_meshset, x)
+
+    def set_flux_pms_meshsets(self, volumes, faces, faces_boundary):
+        pms_tag = self.tags['PMS2']
+        pcorr_tag = self.tags['PCORR2']
+        mobi_in_faces_tag = self.tags['MOBI_IN_FACES']
+        fw_in_faces_tag = self.tags['FW_IN_FACES']
+        s_grav_tag = self.tags['S_GRAV']
+
+        volumes_2 = self.mtu.get_bridge_adjacencies(volumes, 2, 3)
+        map_local = dict(zip(volumes_2, range(len(volumes_2))))
+        vols3 = self.mtu.get_bridge_adjacencies(faces_boundary, 2, 3)
+        # vols3: volumes separados pelas faces que ficam na interface do primal
+        pms_vols3 = self.mb.tag_get_data(pms_tag, vols3, flat=True)
+        map_pms_vols3 = dict(zip(vols3, pms_vols3))
+        del pms_vols3
+
+        mobi_in_faces = self.mb.tag_get_data(mobi_in_faces_tag, faces, flat=True)
+        fws_faces = self.mb.tag_get_data(fw_in_faces_tag, faces, flat=True)
+        if self.gravity:
+            s_gravs_faces = self.mb.tag_get_data(s_grav_tag, faces, flat=True)
+        else:
+            s_gravs_faces = np.zeros(len(faces))
+
+        pcorrs = self.mb.tag_get_data(pcorr_tag, volumes, flat=True)
+        map_pcorrs = dict(zip(volumes, pcorrs))
+        del pcorrs
+        fluxos = np.zeros(len(volumes_2))
+        fluxos_w = fluxos.copy()
+        flux_in_faces = np.zeros(len(faces))
+        Adjs = [self.mb.get_adjacencies(face, 3) for face in faces]
+        map_faces = dict(zip(faces, range(len(faces))))
+        faces_in = rng.subtract(faces, faces_boundary)
+
+        for face in faces_in:
+            id_face = map_faces[face]
+            elem0 = Adjs[id_face][0]
+            elem1 = Adjs[id_face][1]
+            id0 = map_local[elem0]
+            id1 = map_local[elem1]
+            mobi = mobi_in_faces[id_face]
+            fw = fws_faces[id_face]
+            s_grav = s_gravs_faces[id_face]
+            p0 = map_pcorrs[elem0]
+            p1 = map_pcorrs[elem1]
+            flux = (p1-p0)*mobi + s_grav
+
+            fluxos[id0] += flux
+            fluxos_w[id0] += flux*fw
+            fluxos[id1] -= flux
+            fluxos_w[id1] -= flux*fw
+            flux_in_faces[id_face] = flux
+
+        for face in faces_boundary:
+            id_face = map_faces[face]
+            elem0 = Adjs[id_face][0]
+            elem1 = Adjs[id_face][1]
+            id0 = map_local[elem0]
+            id1 = map_local[elem1]
+            mobi = mobi_in_faces[id_face]
+            fw = fws_faces[id_face]
+            s_grav = s_gravs_faces[id_face]
+            p0 = map_pms_vols3[elem0]
+            p1 = map_pms_vols3[elem1]
+            flux = (p1-p0)*mobi + s_grav
+
+            fluxos[id0] += flux
+            fluxos_w[id0] += flux*fw
+            fluxos[id1] -= flux
+            fluxos_w[id1] -= flux*fw
+            flux_in_faces[id_face] = flux
+
+        ids_volumes = [map_local[v] for v in volumes]
+        fluxos = fluxos[ids_volumes]
+        fluxos_w = fluxos_w[ids_volumes]
+
+        total_flux_tag = self.tags['TOTAL_FLUX']
+        flux_w_tag = self.tags['FLUX_W']
+        flux_in_faces_tag = self.tags['FLUX_IN_FACES']
+
+        self.mb.tag_set_data(total_flux_tag, volumes, fluxos)
+        self.mb.tag_set_data(flux_w_tag, volumes, fluxos_w)
+        self.mb.tag_set_data(flux_in_faces_tag, faces, flux_in_faces)
+
+    def set_flux_pms_elems_nv0(self, volumes, faces, pms_tag):
+
+        mobi_in_faces_tag = self.tags['MOBI_IN_FACES']
+        fw_in_faces_tag = self.tags['FW_IN_FACES']
+        s_grav_tag = self.tags['S_GRAV']
+
+        mobi_in_faces = self.mb.tag_get_data(mobi_in_faces_tag, faces, flat=True)
+        # mobi_in_faces = self.mb.tag_get_data(self.kdif_tag, faces, flat=True)
+        fws_faces = self.mb.tag_get_data(fw_in_faces_tag, faces, flat=True)
+        if self.gravity:
+            s_gravs_faces = self.mb.tag_get_data(s_grav_tag, faces, flat=True)
+        else:
+            s_gravs_faces = np.zeros(len(faces))
+
+        volumes_2 = self.mtu.get_bridge_adjacencies(volumes, 2, 3)
+        map_local = dict(zip(volumes_2, range(len(volumes_2))))
+        pmss = self.mb.tag_get_data(pms_tag, volumes_2, flat=True)
+        fluxos = np.zeros(len(volumes_2))
+        fluxos_w = fluxos.copy()
+        flux_in_faces = np.zeros(len(faces))
+        Adjs = [self.mb.get_adjacencies(face, 3) for face in faces]
+
+        for i, face in enumerate(faces):
+            elem0 = Adjs[i][0]
+            elem1 = Adjs[i][1]
+            id0 = map_local[elem0]
+            id1 = map_local[elem1]
+            mobi = mobi_in_faces[i]
+            s_grav = s_gravs_faces[i]
+            fw = fws_faces[i]
+            flux = (pmss[id1] - pmss[id0])*mobi + s_grav
+            fluxos[id0] += flux
+            fluxos_w[id0] += flux*fw
+            fluxos[id1] -= flux
+            fluxos_w[id1] -= flux*fw
+            flux_in_faces[i] = flux
+
+        # pdb.set_trace()
+        # tt = np.where(fluxos_w < 0)[0]
+        # vols_tt = np.array(volumes_2)[tt]
+        # vols_injector = np.array(self.wells_injector)
+        # vols_producer = np.array(self.wells_producer)
+        # map_vols_injector = [map_local[v] for v in vols_injector]
+        # fl_injector = fluxos_w[map_vols_injector]
+        # ff = np.setdiff1d(vols_tt, vols_injector)
+        # pdb.set_trace()
+
+        # ids_volumes = [map_local[v] for v in volumes]
+        ids_volumes = list((map_local[v] for v in volumes))
+        fluxos = fluxos[ids_volumes]
+        fluxos_w = fluxos_w[ids_volumes]
+
+        total_flux_tag = self.tags['TOTAL_FLUX']
+        flux_w_tag = self.tags['FLUX_W']
+        flux_in_faces_tag = self.tags['FLUX_IN_FACES']
+
+        self.mb.tag_set_data(total_flux_tag, volumes, fluxos)
+        self.mb.tag_set_data(flux_w_tag, volumes, fluxos_w)
+        self.mb.tag_set_data(flux_in_faces_tag, faces, flux_in_faces)
