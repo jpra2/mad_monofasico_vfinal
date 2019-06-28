@@ -29,7 +29,7 @@ class Mesh:
             data_loaded = yaml.load(stream)
             # data_loaded = yaml.load(stream, Loader=yaml.FullLoader)
             # data_loaded = yaml.full_load(stream)
-
+            
         input_file = data_loaded['input_file']
         self.input_file = input_file
         ext_h5m_adm = input_file + '_malha_adm.h5m'
@@ -57,8 +57,8 @@ class Mesh:
                 os.chdir(bifasico_sol_direta_dir)
                 self.mb.load_file(ext_h5m)
             else:
-                ext_h5m = input_file + 'sol_direta_' + str(ultimo_loop) + '.h5m'
-                os.chdir(bifasico_sol_direta_dir)
+                ext_h5m = input_file + 'sol_multiescala_' + str(ultimo_loop) + '.h5m'
+                os.chdir(bifasico_sol_multiescala_dir)
                 self.mb.load_file(ext_h5m)
             hist = np.load('historico_' + str(ultimo_loop) + '.npy')
             self.vpi = hist[0]
@@ -69,8 +69,11 @@ class Mesh:
         self.mtu.construct_aentities(self.all_nodes)
         self.all_faces = self.mb.get_entities_by_dimension(0, 2)
         self.all_edges = self.mb.get_entities_by_dimension(0, 1)
-        self.tags = LoadADMMesh.load_tags(self.mb)
-        self.tags.update(LoadADMMesh.create_tags_bifasico(self.mb, ADM, self.all_nodes))
+        if ler_anterior:
+            self.tags = LoadADMMesh.load_all_tags(self.mb)
+        else:
+            self.tags = LoadADMMesh.load_tags(self.mb)
+            self.tags.update(LoadADMMesh.create_tags_bifasico(self.mb, ADM, self.all_nodes))
 
         self.volumes_d = self.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([self.tags['P']]), np.array([None]))
         self.volumes_n = self.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([self.tags['Q']]), np.array([None]))
@@ -125,6 +128,15 @@ class Mesh:
 
 
 class LoadADMMesh:
+    all_tags = ['d1', 'd2', 'l1_ID', 'l2_ID', 'l3_ID', 'P', 'Q', 'FACES_BOUNDARY',
+                'FACES_BOUNDARY_MESHSETS_LEVEL_2', 'FACES_BOUNDARY_MESHSETS_LEVEL_3',
+                'FINE_TO_PRIMAL1_CLASSIC', 'FINE_TO_PRIMAL2_CLASSIC', 'PRIMAL_ID_1',
+                'PRIMAL_ID_2', 'L2_MESHSET', 'ID_reord_tag', 'CENT', 'AREA', 'K_EQ',
+                'KHARM', 'finos0', 'intermediarios', 'PHI', 'finos', 'SAT_LAST',
+                'VOLUME', 'SAT', 'FW', 'LAMB_W', 'LAMB_O', 'LBT', 'MOBI_IN_FACES',
+                'FW_IN_FACES', 'TOTAL_FLUX', 'FLUX_W', 'FLUX_IN_FACES', 'S_GRAV',
+                'S_GRAV_VOLUME', 'DFDS', 'GAMAV', 'GAMAF', 'VOLUME', 'PF','PMS2',
+                'PCORR2', 'NODES']
 
     @staticmethod
     def load_tags(mb):
@@ -132,8 +144,7 @@ class LoadADMMesh:
                            'FACES_BOUNDARY_MESHSETS_LEVEL_2', 'FACES_BOUNDARY_MESHSETS_LEVEL_3',
                            'FINE_TO_PRIMAL1_CLASSIC', 'FINE_TO_PRIMAL2_CLASSIC', 'PRIMAL_ID_1',
                            'PRIMAL_ID_2', 'L2_MESHSET', 'ID_reord_tag', 'CENT', 'AREA',
-                           'K_EQ', 'KHARM', 'finos0', 'intermediarios', 'PHI']
-
+                           'K_EQ', 'KHARM', 'finos0', 'intermediarios', 'PHI', 'finos']
         tags = {}
         for name in list_names_tags:
             try:
@@ -207,11 +218,10 @@ class LoadADMMesh:
         for name in n1:
             tags[name] = mb.tag_get_handle(name, 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
 
-        n2 = ['PMS2', 'PF', 'PCORR2']
+        n2 = ['PMS2', 'PCORR2']
 
-        if ADM:
-            for name in n2:
-                tags[name] = mb.tag_get_handle(name, 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
+        for name in n2:
+            tags[name] = mb.tag_get_handle(name, 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
 
         n3 = ['NODES']
 
@@ -221,7 +231,6 @@ class LoadADMMesh:
         coords = mb.get_coords(all_nodes)
         # coords = coords.reshape([len(all_nodes), 3])
         mb.tag_set_data(tags['NODES'], all_nodes, coords)
-
 
         return tags
 
@@ -268,3 +277,20 @@ class LoadADMMesh:
         wirebasket_elems_nv1 = np.array(list(internos) + list(faces) + list(arestas) + list(vertices))
 
         return wirebasket_elems_nv1
+
+    @staticmethod
+    def load_all_tags(mb):
+        tags = {}
+        for name in LoadADMMesh.all_tags:
+            try:
+                tag = mb.tag_get_handle(str(name))
+            except:
+
+                print(name, 'Nao existe no arquivo')
+                continue
+                # sys.exit(0)
+                # import pdb; pdb.set_trace()
+
+            tags[name] = tag
+
+        return tags

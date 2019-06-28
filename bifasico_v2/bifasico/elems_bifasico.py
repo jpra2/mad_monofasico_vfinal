@@ -17,7 +17,7 @@ output_dir = os.path.join(parent_parent_dir, 'output')
 
 class BifasicElems:
 
-    def __init__(self, data_loaded, Adjs, all_centroids, all_faces_in, all_kharm, all_volumes, injectors, producers, tags, mb, volumes_d, volumes_n, ler_anterior, mtu, wirebasket_elems_nv1):
+    def __init__(self, data_loaded, Adjs, all_centroids, all_faces_in, all_kharm, all_volumes, injectors, producers, tags, mb, volumes_d, volumes_n, ler_anterior, mtu, wirebasket_elems_nv1, mesh):
         self.cfl_ini = 0.5
         self.mi_w = float(data_loaded['dados_bifasico']['mi_w'])
         self.mi_o = float(data_loaded['dados_bifasico']['mi_o'])
@@ -54,6 +54,7 @@ class BifasicElems:
         self.map_global = dict(zip(self.all_volumes, self.ids_reord))
         self.wirebasket_elems_nv1 = wirebasket_elems_nv1
         self.mtu = mtu
+        self.av = mesh.vv
 
         v0 = all_volumes[0]
         points = mtu.get_bridge_adjacencies(v0, 3, 0)
@@ -209,6 +210,7 @@ class BifasicElems:
         self.all_dfds = all_dfds
         self.all_gamaf = all_gamaf
         self.s_grav_volumes = s_grav_volumes
+        self.fluxo_grav_volumes = s_grav_volumes
 
         volumes = self.all_volumes
 
@@ -350,6 +352,7 @@ class BifasicElems:
         self.all_dfds = all_dfds
         self.all_gamaf = all_gamaf
         self.s_grav_volumes = s_grav_volumes
+        self.fluxo_grav_volumes = s_grav_volumes
 
         volumes = self.all_volumes
 

@@ -4,8 +4,16 @@ nx: 27
 ny: 27
 nz: 27
 
+lx: 20
+ly: 10
+lz: 2
+
 Crs:
   Cr1: [3,3,3]
   Cr2: [9,9,9]
 
 rodar_monofasico: False
+
+tol: 0.0
+tol_n2: 0.2
+refins: 0.05

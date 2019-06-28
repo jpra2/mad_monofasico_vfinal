@@ -460,17 +460,18 @@ M1.mb.tag_set_data(cent_tag, M1.all_volumes, M1.all_centroids)
 all_centroids = M1.all_centroids
 
 cr1 = data_loaded['Crs']['Cr1']
+cr2 = data_loaded['Crs']['Cr2']
 
-nx=27
-ny=27
-nz=27
+nx=data_loaded['nx']
+ny=data_loaded['ny']
+nz=data_loaded['nz']
 
-lx=20
-ly=10
-lz=2
+lx=data_loaded['lx']
+ly=data_loaded['ly']
+lz=data_loaded['lz']
 
-l1=[3*lx,3*ly,3*lz]
-l2=[9*lx,9*ly,9*lz]
+l1=[cr1[0]*lx,cr1[1]*ly,cr1[2]*lz]
+l2=[cr2[0]*lx,cr2[1]*ly,cr2[2]*lz]
 
 x1=nx*lx
 y1=ny*ly
@@ -1947,13 +1948,14 @@ reord_to_classic=dict(zip(GIDs,classic_ID))
 ADM1_to_AMS=dict(zip(ADM,classic_ID))
 psr=OR_AMS*pseudo_erro
 
-tol=0.0
+tol=data_loaded['tol']
 #tol_n2=len(M1.all_volumes)/2
-tol_n2=0.2*len(M1.all_volumes)
+tol_n2 = data_loaded['tol_n2']
+tol_n2=tol_n2*len(M1.all_volumes)
 cont=1
 continuar=True
 mpante=pseudo_erro_restringido.max()
-refins=0.05
+refins=data_loaded['refins']
 nr0=int(len(vertices)*refins)
 perro=[]
 ppseudo=[]

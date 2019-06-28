@@ -5,22 +5,22 @@ gravity: True
 MPFA: True
 # estruturado ou nao
 
-ADM: False
+ADM: True
 # solucao multiescala ADM
 
 ler_anterior: False
 converter_unidades: True
-loops_de_cada_rodada: 10
+loops_de_cada_rodada: 1
 loops_antes_de_reiniciar: 1
-numero_de_impressoes: 5
+numero_de_impressoes: 1
 
 dados_bifasico:
   Sor: 0.2
   Swc: 0.2
   mi_w: 0.001
   mi_o: 0.005
-  gama_w: 10.0
-  gama_o: 9.0
+  gama_w: 10000.0
+  gama_o: 9000.0
   nwater: 2.0
   noil: 2.0
   loops: 1000
