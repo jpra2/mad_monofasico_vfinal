@@ -28,6 +28,10 @@ class SolAdm:
         self.bound_faces_nv = mesh.bound_faces_nv
         self.all_faces_in = mesh.all_faces_in
         self.av = mesh.vv
+        self.finos0 = mesh.finos0
+        self.intermediarios = mesh.intermediarios
+        self.meshsets_levels = mesh.meshsets_levels
+        self.L2_meshset = mesh.L2_meshset
 
         meshset_vertices_nv2 = mb.create_meshset()
         mb.add_entities(meshset_vertices_nv2, wirebasket_elems[1][3])
@@ -38,7 +42,7 @@ class SolAdm:
         self.get_G_nv1()
         self.get_OR1_AMS()
         self.get_OR2_AMS()
-        self.get_n1adm_and_n2adm_and_finos0()
+        self.get_n1adm_and_n2adm()
 
     def get_AMS_to_ADM_dict(self):
 
@@ -127,14 +131,6 @@ class SolAdm:
 
     def get_OP1_AMS(self):
         self.OP1_AMS = prolongation.get_op_AMS_TPFA_top(self.mb, self.faces_adjs_by_dual, self.intern_adjs_by_dual, self.ni, self.nf, self.tags['MOBI_IN_FACES'], self.As)
-
-    def get_n1adm_and_n2adm_and_finos0(self):
-        tags_1 = self.tags
-        all_volumes = self.all_volumes
-
-        self.n1_adm = self.mb.tag_get_data(tags_1['l1_ID'], all_volumes, flat=True).max() + 1
-        self.n2_adm = self.mb.tag_get_data(tags_1['l2_ID'], all_volumes, flat=True).max() + 1
-        self.finos0 = self.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([self.tags['l3_ID']]), np.array([1]))
 
     def get_n1adm_and_n2adm(self):
         tags_1 = self.tags
@@ -370,17 +366,17 @@ class SolAdm:
         faces = mtu.get_bridge_adjacencies(elems_nv0, 3, 2)
         faces = rng.subtract(faces, boundary_faces)
         self.set_flux_pms_elems_nv0(elems_nv0, faces, tags_1['PMS2'])
+        self.mb.write_file('ttt.vtk', [self.av])
 
+        volumes = self.wirebasket_elems_nv0
 
-        fluxos = np.zeros(len(self.all_volumes))
-        fluxos_w = np.zeros(len(self.all_volumes))
-        fluxo_grav_volumes = np.zeros(len(self.all_volumes))
-        flux_in_faces = np.zeros(len(self.all_faces_in))
-        flux_w_in_faces = np.zeros(len(self.all_faces_in))
+        fluxos = self.mb.tag_get_data(self.tags['TOTAL_FLUX'], volumes, flat=True)
+        fluxos_w = self.mb.tag_get_data(self.tags['FLUX_W'], volumes, flat=True)
+        flux_in_faces = self.mb.tag_get_data(self.tags['FLUX_IN_FACES'], self.all_faces_in, flat=True)
+        fw_in_faces = self.mb.tag_get_data(self.tags['FW_IN_FACES'], self.all_faces_in, flat=True)
+        flux_w_in_faces = flux_in_faces*fw_in_faces
 
-        import pdb; pdb.set_trace()
-
-        return fluxos, fluxos_w, flux_in_faces, flux_w_in_faces, fluxo_grav_volumes
+        return fluxos, fluxos_w, flux_in_faces, flux_w_in_faces
 
     def calc_pcorr_nv(self, vertices_nv, k, tag_primal_classic):
         tags_1 = self.tags
@@ -623,3 +619,145 @@ class SolAdm:
         self.mb.tag_set_data(total_flux_tag, volumes, fluxos)
         self.mb.tag_set_data(flux_w_tag, volumes, fluxos_w)
         self.mb.tag_set_data(flux_in_faces_tag, faces, flux_in_faces)
+
+    def set_finos(self):
+        finos0 = self.finos0
+        meshsets_nv1 = self.meshsets_levels[0]
+        finos_tag = self.tags['finos']
+        sat_tag = self.tags['SAT']
+
+        lim_sat = 0.1
+
+        finos = self.mb.create_meshset()
+        self.mb.add_entities(finos, finos0)
+        self.mb.tag_set_data(self.finos_tag, 0, finos)
+
+        for m in meshsets_nv1:
+            elems = self.mb.get_entities_by_handle(m)
+            sats = self.mb.tag_get_data(sat_tag, elems, flat=True)
+            min_sat = sats.min()
+            max_sat = sats.max()
+            if max_sat - min_sat > lim_sat:
+                self.mb.add_entities(finos, elems)
+
+    def generate_adm_mesh(self, loop=0):
+        mb = self.mb
+        all_volumes = self.all_volumes
+
+        nn = len(all_volumes)
+        # meshsets do nivel 3
+        meshsets_nv1 = set()
+        meshsets_nv2 = set()
+
+        list_L1_ID = []
+        list_L2_ID = []
+        list_L3_ID = []
+        volumes = []
+
+        finos = mb.tag_get_data(self.tags['finos'], 0, flat=True)[0]
+        finos = set(mb.get_entities_by_handle(finos))
+        # intermediarios2 = set(rng.subtract(self.mtu.get_bridge_adjacencies(rng.Range(finos), 2, 3), rng.Range(finos)))
+        intermediarios = set(self.intermediarios) - finos
+        ######################################################################
+        # ni = ID do elemento no nível i
+        n1=0
+        n2=0
+        n_vols = 0
+        meshset_by_L2 = mb.get_child_meshsets(self.L2_meshset)
+        print('\n')
+        print("INICIOU GERAÇÃO DA MALHA ADM")
+        print('\n')
+        tempo0_ADM=time.time()
+        t0 = tempo0_ADM
+        for m2 in meshset_by_L2:
+            #1
+            n_vols_l3 = 0
+            nivel3 = True
+            nivel2 = False
+            nivel1 = False
+            meshset_by_L1 = mb.get_child_meshsets(m2)
+            meshsets_nv2aqui = set(meshset_by_L1)
+            for m1 in meshset_by_L1:
+                #2
+                elem_by_L1 = mb.get_entities_by_handle(m1)
+                nn1 = len(elem_by_L1)
+                n_vols += nn1
+                n_vols_l3 += nn1
+                int_finos = set(elem_by_L1) & finos # interseccao do elementos do meshset com os volumes do nivel1
+                int_interm = set(elem_by_L1) & intermediarios # interseccao do elementos do meshset com os volumes do nivel2
+                if int_finos:
+                    #3
+                    volumes.append(elem_by_L1)
+                    meshsets_nv1.add(m1)
+                    nivel3 = False
+                    nivel1 = True
+                    level = 1
+                    list_L1_ID.append(np.arange(n1, n1+nn1))
+                    list_L2_ID.append(np.arange(n2, n2+nn1))
+                    list_L3_ID.append(np.repeat(level, nn1))
+                    n1 += nn1
+                    n2 += nn1
+                #2
+                elif int_interm:
+                    #3
+                    volumes.append(elem_by_L1)
+                    meshsets_nv2.add(m1)
+                    nivel3 = False
+                    nivel2 = True
+                    level = 2
+                    list_L1_ID.append(np.repeat(n1, nn1))
+                    list_L2_ID.append(np.repeat(n2, nn1))
+                    list_L3_ID.append(np.repeat(level, nn1))
+                    n1 += 1
+                    n2 += 1
+            #1
+            if nivel3:
+                #2
+                level = 3
+                for m1 in meshset_by_L1:
+                    #3
+                    elem_by_L1 = mb.get_entities_by_handle(m1)
+                    nn1 = len(elem_by_L1)
+                    volumes.append(elem_by_L1)
+                    list_L1_ID.append(np.repeat(n1, nn1))
+                    n1 += 1
+                #2
+                list_L2_ID.append(np.repeat(n2, n_vols_l3))
+                list_L3_ID.append(np.repeat(level, n_vols_l3))
+                n2 += 1
+            #1
+            else:
+                #2
+                meshsets_fora = meshsets_nv2aqui - (meshsets_nv2 | meshsets_nv1)
+                #2
+                if meshsets_fora:
+                    #3
+                    for m1 in meshsets_fora:
+                        #4
+                        elem_by_L1 = mb.get_entities_by_handle(m1)
+                        volumes.append(elem_by_L1)
+                        nn1 = len(elem_by_L1)
+                        level = 2
+                        list_L1_ID.append(np.repeat(n1, nn1))
+                        list_L2_ID.append(np.repeat(n2, nn1))
+                        list_L3_ID.append(np.repeat(level, nn1))
+                        n1 += 1
+                        n2 += 1
+
+
+        volumes = np.concatenate(volumes)
+        list_L1_ID = np.concatenate(list_L1_ID)
+        list_L2_ID = np.concatenate(list_L2_ID)
+        list_L3_ID = np.concatenate(list_L3_ID)
+
+        mb.tag_set_data(self.tags['l1_ID'], volumes, list_L1_ID)
+        mb.tag_set_data(self.tags['l2_ID'], volumes, list_L2_ID)
+        mb.tag_set_data(self.tags['l3_ID'], volumes, list_L3_ID)
+        self.n1_adm = n1
+        self.n2_adm = n2
+
+    def get_infos_for_next_loop(self):
+        self.set_finos()
+        self.generate_adm_mesh()
+        self.get_AMS_to_ADM_dict()
+        self.get_COL_TO_ADM_2()

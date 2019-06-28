@@ -50,12 +50,12 @@ class SolDireta:
 
         fluxos_w_volumes = np.array(sp.csc_matrix((data, (lines, cols)), shape=(n, 1)).todense()).flatten()
 
-        # fluxo de gravidade no volumes
-        data = []
-        data.append(s_grav_f)
-        data.append(-s_grav_f)
-        data = np.concatenate(data)
+        # # fluxo de gravidade no volumes
+        # data = []
+        # data.append(s_grav_f)
+        # data.append(-s_grav_f)
+        # data = np.concatenate(data)
+        #
+        # s_grav_volumes = np.array(sp.csc_matrix((data, (lines, cols)), shape=(n, 1)).todense()).flatten()
 
-        s_grav_volumes = np.array(sp.csc_matrix((data, (lines, cols)), shape=(n, 1)).todense()).flatten()
-
-        return flux_volumes, fluxos_w_volumes, flux_in_faces, fw_in_faces, s_grav_volumes
+        return flux_volumes, fluxos_w_volumes, flux_in_faces, fw_in_faces

@@ -53,8 +53,7 @@ while verif:
     fw_in_faces = bif_elems.all_fw_in_face
     volumes = mesh.all_volumes
     gravity = mesh.gravity
-    bif_elems.fluxos, bif_elems.fluxos_w, bif_elems.flux_in_faces, bif_elems.flux_w_in_faces, bif_elems.fluxo_grav_volumes = sol.calculate_total_flux(ids0, ids1, mobi_in_faces, s_grav_f, Pf, fw_in_faces, volumes, gravity)
-    import pdb; pdb.set_trace()
+    bif_elems.fluxos, bif_elems.fluxos_w, bif_elems.flux_in_faces, bif_elems.flux_w_in_faces = sol.calculate_total_flux(ids0, ids1, mobi_in_faces, s_grav_f, Pf, fw_in_faces, volumes, gravity)
     t1 = time.time()
     dt = t1-t0
     bif_elems.set_solutions1()
@@ -76,6 +75,8 @@ while verif:
     if verif:
         # bifasico.calculate_sat(all_volumes, loop)
         # bifasico.verificar_cfl(all_volumes, loop)
+        if mesh.ADM:
+            sol.get_infos_for_next_loop()
         bif_elems.set_lamb()
         bif_elems.set_mobi_faces()
 
