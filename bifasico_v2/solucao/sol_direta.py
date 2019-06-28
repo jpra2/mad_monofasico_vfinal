@@ -7,8 +7,9 @@ class SolDireta:
     def __init__(self):
         pass
 
-    def solucao_pressao(self, Tf, b):
-        return oth.get_solution(Tf, b)
+    def solucao_pressao(self, Tf2, b2, loop, Tf):
+        self.Pf = oth.get_solution(Tf2, b2)
+        return self.Pf
 
     def calculate_total_flux(self, ids0, ids1, mobi_in_faces, s_grav_f, Pf, fw_in_faces, volumes, gravity):
 
@@ -49,12 +50,12 @@ class SolDireta:
 
         fluxos_w_volumes = np.array(sp.csc_matrix((data, (lines, cols)), shape=(n, 1)).todense()).flatten()
 
-        # fluxo de gravidade no volumes
-        data = []
-        data.append(s_grav_f)
-        data.append(-s_grav_f)
-        data = np.concatenate(data)
+        # # fluxo de gravidade no volumes
+        # data = []
+        # data.append(s_grav_f)
+        # data.append(-s_grav_f)
+        # data = np.concatenate(data)
+        #
+        # s_grav_volumes = np.array(sp.csc_matrix((data, (lines, cols)), shape=(n, 1)).todense()).flatten()
 
-        s_grav_volumes = np.array(sp.csc_matrix((data, (lines, cols)), shape=(n, 1)).todense()).flatten()
-
-        return flux_volumes, fluxos_w_volumes, flux_in_faces, fw_in_faces, s_grav_volumes
+        return flux_volumes, fluxos_w_volumes, flux_in_faces, fw_in_faces
