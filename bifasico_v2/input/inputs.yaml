@@ -10,9 +10,10 @@ ADM: True
 
 ler_anterior: False
 converter_unidades: True
-loops_de_cada_rodada: 1
-loops_antes_de_reiniciar: 1
-numero_de_impressoes: 1
+loops_de_cada_rodada: 2
+numero_de_impressoes: 2
+loops_antes_de_reiniciar: 2
+
 
 dados_bifasico:
   Sor: 0.2

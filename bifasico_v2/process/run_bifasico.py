@@ -32,12 +32,14 @@ if mesh.ADM:
     os.chdir(parent_parent_dir)
     from solucao.sol_adm import SolAdm
     os.chdir(bifasico_sol_multiescala_dir)
+    diretorio_saida = bifasico_sol_multiescala_dir
     sol = SolAdm(mesh.mb, mesh.wirebasket_elems, mesh.wirebasket_numbers, mesh.tags, mesh.all_volumes, mesh.faces_adjs_by_dual, mesh.intern_adjs_by_dual, mesh.mv, mesh.mtu, mesh)
     inter_name = 'sol_multiescala_'
 
 elif not mesh.ADM:
     from solucao.sol_direta import SolDireta
     os.chdir(bifasico_sol_direta_dir)
+    diretorio_saida = bifasico_sol_direta_dir
     sol = SolDireta()
     inter_name = 'sol_direta_'
 
@@ -59,10 +61,12 @@ while verif:
     bif_elems.set_solutions1()
     bif_elems.calc_cfl()
     bif_elems.verificar_cfl(loop)
-    bif_elems.get_hist(t, dt, loop)
 
     loop += 1
     t += bif_elems.delta_t
+    bif_elems.get_hist(t, dt, loop)
+
+
 
     ext_h5m = mesh.input_file + inter_name + str(loop) + '.h5m'
     ext_vtk = mesh.input_file + inter_name + str(loop) + '.vtk'
@@ -86,6 +90,8 @@ while verif:
 
     if contador % interv_loops == 0 or loop == 1:
         cont_imp += 1
+        if loop == 1:
+            cont_imp -= 1
         bif_elems.print_hist(loop)
         mesh.mb.write_file(ext_h5m)
         mesh.mb.write_file(ext_vtk, [mesh.vv])
@@ -99,7 +105,7 @@ while verif:
         os.chdir(input_dir)
         ultimo_loop = np.array([loop])
         np.save('ultimo_loop', ultimo_loop)
-        os.chdir(bifasico_sol_direta_dir)
+        os.chdir(diretorio_saida)
         if cont_imp >= n_impressoes:
             sys.exit(0)
 
