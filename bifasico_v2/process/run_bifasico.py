@@ -75,10 +75,14 @@ while verif:
     if verif:
         # bifasico.calculate_sat(all_volumes, loop)
         # bifasico.verificar_cfl(all_volumes, loop)
+        tii = time.time()
         if mesh.ADM:
             sol.get_infos_for_next_loop()
         bif_elems.set_lamb()
         bif_elems.set_mobi_faces()
+        tee = time.time()
+        dt2 = tee - tii
+        bif_elems.hist[5] += dt2
 
     if contador % interv_loops == 0 or loop == 1:
         cont_imp += 1

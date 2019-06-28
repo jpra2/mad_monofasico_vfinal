@@ -313,14 +313,27 @@ class SolAdm:
         self.OR2_ADM = OR2_ADM
 
     def get_ops_ADM_seq(self):
+        t1 = time.time()
         self.get_OP1_AMS()
+        print('OP1_AMS: ', time.time() - t1)
+        t1 = time.time()
         self.organize_OP1_ADM()
+        print('ORGANIZE OP1: ', time.time() - t1)
+        t1 = time.time()
         self.get_OPs2_ADM()
+        print('OPs2 ADM: ', time.time() - t1)
 
     def solucao_pressao(self, Tf2, b2, loop, Tf):
+        t1 = time.time()
         self.get_As(Tf)
+        print('AS: ', time.time() - t1)
+        t1 = time.time()
         self.get_ops_ADM_seq()
+        print('ops: ', time.time() - t1)
+        t1 = time.time()
         self.solve_adm_system(Tf2, b2)
+        print('solve_adm_system: ',time.time() - t1)
+        t1 = time.time()
 
         return self.Pf
 
@@ -348,6 +361,7 @@ class SolAdm:
         mb.tag_set_data(tags['PMS2'], wirebasket_elems_nv0, Pms2)
 
     def calculate_total_flux(self, ids0, ids1, mobi_in_faces, s_grav_f, Pf, fw_in_faces, volumes, gravity):
+        t1 = time.time()
         tags_1 = self.tags
         mb = self.mb
         meshset_vertices = self.mv
@@ -366,7 +380,9 @@ class SolAdm:
         faces = mtu.get_bridge_adjacencies(elems_nv0, 3, 2)
         faces = rng.subtract(faces, boundary_faces)
         self.set_flux_pms_elems_nv0(elems_nv0, faces, tags_1['PMS2'])
-        self.mb.write_file('ttt.vtk', [self.av])
+        t2 = time.time()
+        dt = t2-t1
+        print('correcao: ',dt)
 
         volumes = self.wirebasket_elems_nv0
 
