@@ -645,9 +645,6 @@ class BifasicElems:
         return cfl
 
     def get_hist(self, t, dt, loop):
-        tgg_tag = self.mb.tag_get_handle('veriff', 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
-        self.mb.tag_set_data(tgg_tag, self.wells_producer, np.repeat(1.0, len(self.wells_producer)))
-        self.mb.write_file('ttt.vtk', [self.av])
         self.flux_total_prod = self.mb.tag_get_data(self.tags['TOTAL_FLUX'], self.wells_producer, flat=True)
         fws = self.mb.tag_get_data(self.tags['FW'], self.wells_producer, flat=True)
 

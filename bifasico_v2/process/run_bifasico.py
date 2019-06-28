@@ -85,8 +85,13 @@ while verif:
         bif_elems.print_hist(loop)
         mesh.mb.write_file(ext_h5m)
         mesh.mb.write_file(ext_vtk, [mesh.vv])
-        with open('tempos_simulacao_direta.txt', 'a+') as fil:
+        with open('tempos_simulacao.txt', 'a+') as fil:
             fil.write(str(dt)+'\n')
+        with open('hist.csv', 'a+') as fil:
+            nhist = len(bif_elems.hist)
+            for i in range(nhist-1):
+                fil.write(str(bif_elems.hist[i])+',')
+            fil.write(str(bif_elems.hist[-1])+'\n')
         os.chdir(input_dir)
         ultimo_loop = np.array([loop])
         np.save('ultimo_loop', ultimo_loop)

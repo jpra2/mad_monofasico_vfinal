@@ -19,8 +19,8 @@ dados_bifasico:
   Swc: 0.2
   mi_w: 0.001
   mi_o: 0.005
-  gama_w: 10.0
-  gama_o: 9.0
+  gama_w: 10000.0
+  gama_o: 9000.0
   nwater: 2.0
   noil: 2.0
   loops: 1000

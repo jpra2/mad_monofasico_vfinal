@@ -630,7 +630,7 @@ class SolAdm:
 
         finos = self.mb.create_meshset()
         self.mb.add_entities(finos, finos0)
-        self.mb.tag_set_data(self.finos_tag, 0, finos)
+        self.mb.tag_set_data(finos_tag, 0, finos)
 
         for m in meshsets_nv1:
             elems = self.mb.get_entities_by_handle(m)
