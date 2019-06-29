@@ -20,5 +20,7 @@ if rodar_monofasico:
     for name in fonte:
         shutil.copy(name, destino)
 
-os.system('python rodar_bifasico.py')
-#oi
+rodar_bifasico = data_loaded['rodar_bifasico']
+
+if rodar_bifasico:
+    os.system('python rodar_bifasico.py')

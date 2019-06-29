@@ -55,9 +55,9 @@ class MeshManager:
             "Global_ID", 1, types.MB_TYPE_INTEGER, types.MB_TAG_DENSE, True)'''
 
         self.create_tags()
-        # self.set_k_and_phi_structured_spe10()
+        self.set_k_and_phi_structured_spe10()
         # self.set_k()
-        self.set_k_homog()
+        # self.set_k_homog()
         #self.set_information("PERM", self.all_volumes, 3)
         self.get_boundary_faces()
         self.gravity = False
@@ -72,7 +72,6 @@ class MeshManager:
         #     self.set_area(f)'''
         # print("took",time.time()-t0)
         self.get_faces_boundary
-
 
     def create_tags(self):
         self.perm_tag = self.mb.tag_get_handle("PERM", 9, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
@@ -312,6 +311,7 @@ class MeshManager:
     def set_k_and_phi_structured_spe10(self):
         ks = np.load('spe10_perms_and_phi.npz')['perms']
         phi = np.load('spe10_perms_and_phi.npz')['phi']
+        phi = phi.flatten()
 
         nx = 60
         ny = 220
@@ -323,16 +323,21 @@ class MeshManager:
         centroids=np.array([self.mtu.get_average_position([v]) for v in self.all_volumes])
         cont=0
         for v in self.all_volumes:
+            permeabilidade = np.zeros(9)
             centroid = centroids[cont]
             cont+=1
             ijk = np.array([centroid[0]//20.0, centroid[1]//10.0, centroid[2]//2.0])
             e = int(ijk[0] + ijk[1]*nx + ijk[2]*nx*ny)
             # perm = ks[e]*k
             # fi = phi[e]
-            perms.append(ks[e]*k)
+            permeabilidade[0] = ks[e][0]
+            permeabilidade[4] = ks[e][1]
+            permeabilidade[8] = ks[e][2]
+            permeabilidade *= k
+            perms.append(permeabilidade)
             phis.append(phi[e])
+            self.mb.tag_set_data(self.perm_tag, v, permeabilidade)
 
-        self.mb.tag_set_data(self.perm_tag, self.all_volumes, perms)
         self.mb.tag_set_data(self.phi_tag, self.all_volumes, phis)
 
     def get_boundary_nodes(self):
@@ -1112,16 +1117,14 @@ def set_kequiv(self,conj_faces,adjs):
     K2 = (k2*abs(direction)).max(axis=1)/norm_direction
     Kharm=2*K1*K2/(K1+K2)
 
-    # Keq=Kharm*area/norm_direction
-    Keq=np.ones(len(Kharm))
+    Keq=Kharm*area/norm_direction
+    # Keq=np.ones(len(Kharm))
     other_faces=np.setdiff1d(np.uint64(M1.all_faces),conj_faces)
     M1.mb.tag_set_data(self.k_eq_tag, conj_faces, Keq)
     M1.mb.tag_set_data(self.kharm_tag, conj_faces, Keq)
 
     M1.mb.tag_set_data(self.k_eq_tag, other_faces, np.zeros(len(other_faces)))
     M1.mb.tag_set_data(self.kharm_tag, other_faces, np.zeros(len(other_faces)))
-
-    #self.mb.tag_set_data(self.kharm_tag, self.all_faces, kharm)
 
 
 ################################################################################
