@@ -55,6 +55,7 @@ class BifasicElems:
         self.wirebasket_elems_nv1 = wirebasket_elems_nv1
         self.mtu = mtu
         self.av = mesh.vv
+        self.ADM = mesh.ADM
 
         v0 = all_volumes[0]
         points = mtu.get_bridge_adjacencies(v0, 3, 0)
@@ -365,11 +366,17 @@ class BifasicElems:
 
     def get_Tf_and_b(self):
         self.Tf = f1.get_Tf(self.all_mobi_in_faces, self.ids0, self.ids1, self.all_volumes)
+
         if self.gravity:
             self.b = -1*self.mb.tag_get_data(self.tags['S_GRAV_VOLUME'], self.wirebasket_elems_nv1, flat=True)
         else:
             self.b = np.zeros(len(self.all_volumes))
-        self.Tf2, self.b2 = f1.set_boundary_dirichlet(self.Tf, self.b, self.ids_volsd, self.values_d)
+
+        if self.ADM:
+            self.b3 = np.zeros(len(self.all_volumes))
+        else:
+            self.b3 = self.b.copy()
+        self.Tf2, self.b2 = f1.set_boundary_dirichlet(self.Tf, self.b3, self.ids_volsd, self.values_d)
         if len(self.ids_volsn) > 0:
             self.b2 = f1.set_boundary_neuman(b, self.ids_volsn, self.values_n)
 
