@@ -39,6 +39,8 @@ while verif:
         else:
             print('Reinicie a simulacao')
             sys.exit(0)
+    else:
+        verif = False
 
 np.save('ler_anterior', np.array([ler_anterior]))
 
@@ -49,8 +51,6 @@ np.save('ler_anterior', np.array([ler_anterior]))
 #     else:
 #         print('reinicie a simulacao')
 #         sys.exit(0)
-
-
 
 if deletar and (not ler_anterior):
     ### deletar arquivos no flying

@@ -1,2 +1,3 @@
+print('rodando bifasico')
 from process.run_bifasico import *
-#oi
+print('terminou um loop')

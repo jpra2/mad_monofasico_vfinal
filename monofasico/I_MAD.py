@@ -55,9 +55,9 @@ class MeshManager:
             "Global_ID", 1, types.MB_TYPE_INTEGER, types.MB_TAG_DENSE, True)'''
 
         self.create_tags()
-        self.set_k_and_phi_structured_spe10()
+        # self.set_k_and_phi_structured_spe10()
         # self.set_k()
-        # self.set_k_homog()
+        self.set_k_homog()
         #self.set_information("PERM", self.all_volumes, 3)
         self.get_boundary_faces()
         self.gravity = False
@@ -1117,8 +1117,8 @@ def set_kequiv(self,conj_faces,adjs):
     K2 = (k2*abs(direction)).max(axis=1)/norm_direction
     Kharm=2*K1*K2/(K1+K2)
 
-    Keq=Kharm*area/norm_direction
-    # Keq=np.ones(len(Kharm))
+    # Keq=Kharm*area/norm_direction
+    Keq=np.ones(len(Kharm))
     other_faces=np.setdiff1d(np.uint64(M1.all_faces),conj_faces)
     M1.mb.tag_set_data(self.k_eq_tag, conj_faces, Keq)
     M1.mb.tag_set_data(self.kharm_tag, conj_faces, Keq)

@@ -372,11 +372,11 @@ class BifasicElems:
         else:
             self.b = np.zeros(len(self.all_volumes))
 
-        if self.ADM:
-            self.b3 = np.zeros(len(self.all_volumes))
-        else:
-            self.b3 = self.b.copy()
-        self.Tf2, self.b2 = f1.set_boundary_dirichlet(self.Tf, self.b3, self.ids_volsd, self.values_d)
+        # if self.ADM:
+        #     self.b3 = np.zeros(len(self.all_volumes))
+        # else:
+        #     self.b3 = self.b.copy()
+        self.Tf2, self.b2 = f1.set_boundary_dirichlet(self.Tf, self.b, self.ids_volsd, self.values_d)
         if len(self.ids_volsn) > 0:
             self.b2 = f1.set_boundary_neuman(b, self.ids_volsn, self.values_n)
 

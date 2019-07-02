@@ -8,11 +8,11 @@ MPFA: True
 ADM: True
 # solucao multiescala ADM
 
-ler_anterior: False
+ler_anterior: True
 converter_unidades: True
-loops_de_cada_rodada: 5
-numero_de_impressoes: 2
-loops_antes_de_reiniciar: 2
+loops_de_cada_rodada: 3
+numero_de_impressoes: 3
+loops_antes_de_reiniciar: 3
 
 dados_bifasico:
   Sor: 0.2
