@@ -24,21 +24,24 @@ with open("inputs.yaml", 'r') as stream:
 
 ler_anterior = data_loaded['ler_anterior']
 verif = True
-while verif:
-    if ler_anterior == False:
-        print('voce tem certeza que deseja perder todos os dados de simulacao?')
-        z = input('s/n\n')
-        if z == 's':
-            print('tem certeza absoluta?')
-            y = input('s/n\n')
-            if y == 's':
-                verif = False
-            else:
-                print('Reinicie a simulacao')
-                sys.exit(0)
-        else:
-            print('Reinicie a simulacao')
-            sys.exit(0)
+# while verif:
+#     if ler_anterior == False:
+#         print('voce tem certeza que deseja perder todos os dados de simulacao?')
+#         z = input('s/n\n')
+#         if z == 's':
+#             print('tem certeza absoluta?')
+#             y = input('s/n\n')
+#             if y == 's':
+#                 verif = False
+#             else:
+#                 print('Reinicie a simulacao')
+#                 sys.exit(0)
+#         else:
+#             print('Reinicie a simulacao')
+#             sys.exit(0)
+#
+#     else:
+#         verif=False
 
 np.save('ler_anterior', np.array([ler_anterior]))
 

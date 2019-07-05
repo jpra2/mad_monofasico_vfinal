@@ -62,9 +62,12 @@ class BifasicElems:
         maxs = coords.max(axis=0)
         mins = coords.min(axis=0)
         # hs = maxs - mins
-        hs = np.array([6.0959998, 3.0479999, 0.60959998])
+        # hs = np.array([6.0959998, 3.0479999, 0.60959998])
+        # hs = np.array([1.0, 1.0, 1.0])
+        hs = mesh.hs
         yyy = mb.tag_get_data(tags['KHARM'], all_faces_in, flat=True)
         # import pdb; pdb.set_trace()
+        # hs = np.array([1.0, 1.0, 1.0])
         self.hs = hs
         # self.Areas = np.array([hs[1]*hs[2], hs[0]*hs[2], hs[0]*hs[1]])
         vol = hs[0]*hs[1]*hs[2]
@@ -385,7 +388,7 @@ class BifasicElems:
 
         return Tf2, b2
 
-    def calc_cfl_dep0(self):
+    def calc_cfl(self):
         """
         cfl usando fluxo em cada volume
         """
@@ -439,10 +442,9 @@ class BifasicElems:
             delta_ts[i] = min([dt1, dt2])
 
         self.delta_t = delta_ts.min()
-        import pdb; pdb.set_trace()
         # self.flux_total_producao = self.mb.tag_get_data(self.tags['TOTAL_FLUX'], self.wells_producer, flat=True).sum()
 
-    def calc_cfl(self):
+    def calc_cfl_v2(self):
         """
         cfl usando fluxo em cada volume
         """

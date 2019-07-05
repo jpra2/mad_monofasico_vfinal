@@ -12,16 +12,20 @@ from scipy.sparse import csc_matrix, csr_matrix, lil_matrix, vstack, hstack, lin
 
 # __all__ = ['M1']
 __all__ = []
-
+parent_dir = os.path.dirname(os.path.abspath(__file__))
+parent_parent_dir = os.path.dirname(parent_dir)
+bifasico_dir = os.path.join(parent_parent_dir, 'bifasico_v2')
+flying_dir = os.path.join(bifasico_dir, 'flying')
 
 class MeshManager:
-    def __init__(self,mesh_file, dim=3):
+    def __init__(self,mesh_file, data_loaded, dim=3):
         self.dimension = dim
         self.mb = core.Core()
         self.root_set = self.mb.get_root_set()
         self.mtu = topo_util.MeshTopoUtil(self.mb)
 
         self.mb.load_file(mesh_file)
+        set_homog = data_loaded['set_homog']
 
         self.physical_tag = self.mb.tag_get_handle("MATERIAL_SET")
         self.physical_sets = self.mb.get_entities_by_type_and_tag(
@@ -55,9 +59,19 @@ class MeshManager:
             "Global_ID", 1, types.MB_TYPE_INTEGER, types.MB_TAG_DENSE, True)'''
 
         self.create_tags()
-        # self.set_k_and_phi_structured_spe10()
+        if set_homog:
+            self.set_k_homog()
+            os.chdir(flying_dir)
+            np.save('hs', np.array([1.0, 1.0, 1.0]))
+        else:
+            self.set_k_and_phi_structured_spe10()
+            hs = np.array([6.0959998, 3.0479999, 0.60959998])
+            dir_atual = os.getcwd()
+            os.chdir(flying_dir)
+            np.save('hs', hs)
+            os.chdir(dir_atual)
         # self.set_k()
-        self.set_k_homog()
+        # self.set_k_homog()
         #self.set_information("PERM", self.all_volumes, 3)
         self.get_boundary_faces()
         self.gravity = False
@@ -202,7 +216,7 @@ class MeshManager:
     def set_k_homog(self):
         k = 1.0
         perm_tensor = [k, 0, 0,
-                       0, k, 0,
+                       0, k*1000, 0,
                        0, 0, k]
 
         for v in self.all_volumes:
@@ -445,7 +459,7 @@ with open("inputs.yaml", 'r') as stream:
 
 input_name = data_loaded['input_name']
 ext_msh = input_name + '.msh'
-M1= MeshManager(ext_msh)          # Objeto que armazenará as informações da malha
+M1 = MeshManager(ext_msh, data_loaded)     # Objeto que armazenará as informações da malha
 all_volumes=M1.all_volumes
 press = 4000.0
 vazao = 10000.0
@@ -1113,7 +1127,8 @@ def set_kequiv(self,conj_faces,adjs):
     Kharm=2*K1*K2/(K1+K2)
 
     # Keq=Kharm*area/norm_direction
-    Keq=np.ones(len(Kharm))
+    Keq=Kharm
+    # Keq=np.ones(len(Kharm))
     other_faces=np.setdiff1d(np.uint64(M1.all_faces),conj_faces)
     M1.mb.tag_set_data(self.k_eq_tag, conj_faces, Keq)
     M1.mb.tag_set_data(self.kharm_tag, conj_faces, Keq)
@@ -2143,6 +2158,7 @@ M1.mb.tag_set_data(P_ADM_tag,M1.all_volumes,SOL_ADM_1fina[GIDs])
 M1.mb.tag_set_data(P_TPFA_tag,M1.all_volumes,SOL_TPFA[GIDs])
 M1.mb.tag_set_data(perm_xx_tag,M1.all_volumes,np.array(perms_xx))
 
+n1, n2 = ADM_mesh(np.concatenate([volumes_n, volumes_d]))
 
 av=M1.mb.create_meshset()
 M1.mb.add_entities(av,M1.all_volumes)

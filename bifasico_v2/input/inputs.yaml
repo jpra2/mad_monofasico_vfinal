@@ -1,6 +1,6 @@
-input_file: '27x27x27'
+input_file: '30x30x45'
 
-gravity: True
+gravity: False
 # adicionar o efeito da gravidade
 MPFA: True
 # estruturado ou nao
@@ -10,9 +10,9 @@ ADM: True
 
 ler_anterior: False
 converter_unidades: True
-loops_de_cada_rodada: 2
-numero_de_impressoes: 2
-loops_antes_de_reiniciar: 2
+loops_de_cada_rodada: 1
+numero_de_impressoes: 5
+loops_antes_de_reiniciar: 1
 
 
 dados_bifasico:

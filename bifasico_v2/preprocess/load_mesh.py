@@ -29,7 +29,7 @@ class Mesh:
             data_loaded = yaml.load(stream)
             # data_loaded = yaml.load(stream, Loader=yaml.FullLoader)
             # data_loaded = yaml.full_load(stream)
-            
+
         input_file = data_loaded['input_file']
         self.input_file = input_file
         ext_h5m_adm = input_file + '_malha_adm.h5m'
@@ -47,6 +47,7 @@ class Mesh:
             self.ultimo_loop = 0
             self.vpi = 0.0
             self.t = 0.0
+            self.hs = np.load('hs.npy')
 
         else:
             os.chdir(input_dir)

@@ -1,8 +1,8 @@
-input_name: '27x27x27'
+input_name: '30x30x45'
 
-nx: 27
-ny: 27
-nz: 27
+nx: 30
+ny: 30
+nz: 45
 
 lx: 20
 ly: 10
@@ -12,8 +12,9 @@ Crs:
   Cr1: [3,3,3]
   Cr2: [9,9,9]
 
-rodar_monofasico: False
+rodar_monofasico: True
+set_homog: True
 
 tol: 0.0
-tol_n2: 0.2
+tol_n2: 0.0
 refins: 0.05
