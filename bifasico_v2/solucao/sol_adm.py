@@ -4,6 +4,7 @@ from utils.others_utils import OtherUtils as oth
 from utils import prolongation_ams as prolongation
 from pymoab import types, rng
 import time
+import os
 
 
 class SolAdm:
@@ -26,6 +27,7 @@ class SolAdm:
         self.gravity = mesh.gravity
         self.all_boundary_faces = mesh.all_boundary_faces
         self.bound_faces_nv = mesh.bound_faces_nv
+        import pdb; pdb.set_trace()
         self.all_faces_in = mesh.all_faces_in
         self.av = mesh.vv
         self.finos0 = mesh.finos0
@@ -235,7 +237,7 @@ class SolAdm:
         #print(time.time()-torganize,"organize novo!!!")
         return operador1
 
-    def organize_OP2_ADM(self, OP2_AMS):
+    def organize_OP2_ADM_dep0(self, OP2_AMS):
         t0 = time.time()
 
         mb = self.mb
@@ -291,6 +293,64 @@ class SolAdm:
         OR_ADM_2 = sp.csc_matrix((data_or,(lines_or,cols_or)),shape=(n2_adm,n1_adm))
 
         return OP_ADM_2, OR_ADM_2
+
+    def organize_OP2_ADM(self, OP_AMS_2):
+        M1 = self
+        L3_ID_tag = self.tags['l3_ID']
+        fine_to_primal1_classic_tag= self.tags['FINE_TO_PRIMAL1_CLASSIC']
+        L1_ID_tag = self.tags['l1_ID']
+        vertices = self.vertices
+        n1 = self.n1_adm
+        n2 = self.n2_adm
+        L2_ID_tag = self.tags['l2_ID']
+        fine_to_primal2_classic_tag = self.tags['FINE_TO_PRIMAL2_CLASSIC']
+        ver = self.ver
+
+
+        torganize=time.time()
+        OP4=OP_AMS_2.copy()
+        mver=M1.mb.create_meshset()
+        M1.mb.add_entities(mver,vertices)
+        vnv2=M1.mb.get_entities_by_type_and_tag(mver, types.MBHEX, np.array([L3_ID_tag]), np.array([3]))
+        IDs_AMS_vs=M1.mb.tag_get_data(fine_to_primal1_classic_tag,vnv2,flat=True)
+        IDs_ADM_vs=M1.mb.tag_get_data(L1_ID_tag,vnv2,flat=True)
+        data=np.ones(len(IDs_AMS_vs))
+        permut_elim=sp.csc_matrix((data,(IDs_ADM_vs,IDs_AMS_vs)),shape=(n1,len(vertices)))
+
+        IDs_AMS_vert=M1.mb.tag_get_data(fine_to_primal2_classic_tag,ver,flat=True)
+        IDs_ADM_vert=M1.mb.tag_get_data(L2_ID_tag,ver,flat=True)
+        lines=IDs_AMS_vert
+        cols=IDs_ADM_vert
+        data=np.ones(len(lines))
+        permut=sp.csc_matrix((data,(lines,cols)),shape=(len(ver),n2))
+        vnv0=np.setdiff1d(vertices,vnv2)
+
+        all_v_nv0=M1.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([L3_ID_tag]), np.array([1]))
+        vnv0=np.unique(np.concatenate([vnv0,all_v_nv0]))
+
+        IDs_ADM_vnv0=M1.mb.tag_get_data(L1_ID_tag,vnv0,flat=True)
+        IDs_AMS_vnv0=M1.mb.tag_get_data(L2_ID_tag,vnv0,flat=True)
+        lines=IDs_ADM_vnv0
+        cols=IDs_AMS_vnv0
+        data=np.ones(len(lines))
+
+        somar=sp.csc_matrix((data,(lines,cols)),shape=(n1,n2))
+        operador1=permut_elim*OP4*permut+somar
+        print(time.time()-torganize,'organize_OP_2')
+
+        l1=M1.mb.tag_get_data(L2_ID_tag, M1.all_volumes, flat=True)
+        c1=M1.mb.tag_get_data(L1_ID_tag, M1.all_volumes, flat=True)
+        d1=np.ones(len(l1))
+        OR_ADM_2=sp.csc_matrix((d1,(l1,c1)),shape=(n2,n1))
+        r2=sp.find(OR_ADM_2)
+        lin=r2[0]
+        col=r2[1]
+        dat=np.ones((1,len(lin)),dtype=np.int)[0]
+        OR_ADM_2=sp.csc_matrix((dat,(lin,col)),shape=(n2,n1))
+
+
+
+        return operador1, OR_ADM_2
 
     def get_OPs2_ADM(self):
         n1_adm = self.n1_adm
@@ -457,8 +517,14 @@ class SolAdm:
             id_face = map_id_faces[face]
             elem0 = Adjs[id_face][0]
             elem1 = Adjs[id_face][1]
-            id0 = map_local[elem0]
-            id1 = map_local[elem1]
+            try:
+                id0 = map_local[elem0]
+            except:
+                import pdb; pdb.set_trace()
+            try:
+                id1 = map_local[elem1]
+            except:
+                import pdb; pdb.set_trace()
             b[id0] += s_g
             b[id1] -= s_g
             lines += [id0, id1]
@@ -657,13 +723,17 @@ class SolAdm:
                 self.mb.add_entities(finos, elems)
 
     def generate_adm_mesh(self, loop=0):
+
         mb = self.mb
         all_volumes = self.all_volumes
+        l3_id_last_tag = self.tags['l3_ID_last']
 
         nn = len(all_volumes)
         # meshsets do nivel 3
         meshsets_nv1 = set()
         meshsets_nv2 = set()
+        l3_id_last = mb.tag_get_data(self.tags['l3_ID'], all_volumes, flat=True)
+        mb.tag_set_data(l3_id_last_tag, all_volumes, l3_id_last)
 
         list_L1_ID = []
         list_L2_ID = []

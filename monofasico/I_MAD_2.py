@@ -5,13 +5,15 @@ import time
 import os
 import scipy
 from matplotlib import pyplot as plt
-import sympy
+# import sympy
 import cython
 import yaml
 from scipy.sparse import csc_matrix, csr_matrix, lil_matrix, vstack, hstack, linalg, identity, find
+
 saiu = False
+
 # __all__ = ['M1']
-__all__ = []
+__all__ = ['saiu']
 parent_dir = os.path.dirname(os.path.abspath(__file__))
 parent_parent_dir = os.path.dirname(parent_dir)
 bifasico_dir = os.path.join(parent_parent_dir, 'bifasico_v2')
@@ -490,17 +492,57 @@ l2=[cr2[0]*lx,cr2[1]*ly,cr2[2]*lz]
 x1=nx*lx
 y1=ny*ly
 z1=nz*lz
+
+
+
+
+testar_MPFA=False
+MPFA_NO_NIVEL_2=True
+calc_TPFA=True
+load_TPFA=False
+corrigir_pocos=False
+conectar_pocos=False
+
+iterar_mono=False
+so_pressao=True
+refinar_nv2=True
+so_2_niveis=False
+
+imprimir_a_cada_iteracao=False
+
+# rel_v2=1.2
+rel_v2=0.0
+
+TOL=0.0
+tol_n2=0.1
+Ni=3
+# Ci = n: Ci -> Razão de engrossamento ni nível i (em relação ao nível i-1),
+# n -> número de blocos em cada uma das 3 direções (mesmo número em todas)
+
+M1.all_centroids=np.array([M1.mtu.get_average_position([v]) for v in all_volumes])
+all_centroids = M1.all_centroids
+
 # Distância, em relação ao poço, até onde se usa malha fina
 r0 = 1
 # Distância, em relação ao poço, até onde se usa malha intermediária
 r1 = 1
 '''
-bvd = np.array([np.array([x1-lx, 0.0, 0.0]), np.array([x1, y1, lz])])
-bvn = np.array([np.array([0.0, 0.0, z1-lz]), np.array([lx, y1, z1])])
-'''
-
+bvd = np.array([np.array([0.0, y1-ly, 0.0]), np.array([x1, y1, z1])])
+bvn = np.array([np.array([0.0, 0.0, 0.0]), np.array([x1, ly, z1])])'''
+# bvd = np.array([np.array([x1-lx, 0.0, 0.0]), np.array([x1, y1, lz])])
+# bvn = np.array([np.array([0.0, 0.0, z1-lz]), np.array([lx, y1, z1])])
+# bvn = np.array([np.array([x1-lx, y1-ly, z1-22*lz]), np.array([x1, y1, z1-9*lz])])###################
+bvn = np.array([np.array([x1-lx, y1-ly,0]), np.array([x1, y1, z1])])
 bvd = np.array([np.array([0.0, 0.0, 0.0]), np.array([lx, ly, z1])])
-bvn = np.array([np.array([x1-lx, y1-ly, 0.0]), np.array([x1, y1, z1])])
+'''
+bvn = np.array([np.array([x1-lx, y1-ly, 0.0]), np.array([x1, y1, z1])])   ############ Usar esse exemplo
+bvd = np.array([np.array([0.0, 0.0, z1-27*lz]), np.array([lx, ly, z1-6*lz])])
+'''
+bvn2 = np.array([np.array([x1-lx, 7*ly, 0.0]), np.array([x1, 8*ly, 0*lz])])
+
+'''
+bvd = np.array([np.array([0.0, 0.0, 0.0]), np.array([lx, ly, z1])])
+bvn = np.array([np.array([x1-lx, y1-ly, 0.0]), np.array([x1, y1, z1])])'''
 #bvd = np.array([np.array([0.0, 0.0, y2]), np.array([y0, y0, y0])])
 #bvn = np.array([np.array([0.0, 0.0, 0.0]), np.array([y0, y0, y1])])
 
@@ -515,7 +557,10 @@ bvin = np.array([np.array([bvn[0][0]-r1, bvn[0][1]-r1, bvn[0][2]-r1]), np.array(
 volumes_d, inds_vols_d= get_box(M1.all_volumes, all_centroids, bvd, True)
 
 # volumes com vazao prescrita
-volumes_n, inds_vols_n = get_box(M1.all_volumes, all_centroids, bvn, True)
+
+volumes_n1, inds_vols_n = get_box(M1.all_volumes, all_centroids, bvn, True)
+volumes_n2, lixo=get_box(M1.all_volumes, all_centroids, bvn2, True)
+volumes_n=rng.unite(volumes_n1,volumes_n2)
 
 # volumes finos por neumann
 volumes_fn = get_box(M1.all_volumes, all_centroids, bvfn, False)
@@ -554,7 +599,7 @@ def Min_Max(e):
 
 def lu_inv2(M):
     L=M.shape[0]
-    s=1000
+    s=50
     n=int(L/s)
     r=int(L-int(L/s)*s)
     tinv=time.time()
@@ -637,7 +682,7 @@ def lu_inv4(M,lines):
     lines=np.array(lines)
     cols=lines
     L=len(lines)
-    s=500
+    s=10
     n=int(L/s)
     r=int(L-int(L/s)*s)
     tinv=time.time()
@@ -799,6 +844,7 @@ M1.mb.tag_set_data(M1.wells_neumann_tag, 0, neumann_meshset)
 M1.mb.tag_set_data(M1.wells_dirichlet_tag, 0, dirichlet_meshset)
 M1.mb.tag_set_data(M1.finos_tag, 0, finos_meshset)
 M1.mb.tag_set_data(M1.press_value_tag, volumes_d, pressao)
+# M1.mb.tag_set_data(M1.press_value_tag, volumes_n, np.repeat(vazao/len(volumes_n), len(volumes_n)))
 M1.mb.tag_set_data(M1.press_value_tag, volumes_n, np.repeat(vazao, len(volumes_n)))
 #-------------------------------------------------------------------------------
 # Vetor que define a "grade" que separa os volumes da malha fina
@@ -869,6 +915,7 @@ t0=time.time()
 L2_meshset=M1.mb.create_meshset()       # root Meshset
 l2_meshset_tag = M1.mb.tag_get_handle("L2_MESHSET", 1, types.MB_TYPE_HANDLE, types.MB_TAG_MESH, True)
 M1.mb.tag_set_data(l2_meshset_tag, 0, L2_meshset)
+
 ###########################################################################################
 #jp:modifiquei as tags abaixo para sparse
 D1_tag=M1.mb.tag_get_handle("d1", 1, types.MB_TYPE_INTEGER, types.MB_TAG_SPARSE, True)
@@ -1009,7 +1056,6 @@ meshsets_nv2 = M1.mb.get_entities_by_type_and_tag(0, types.MBENTITYSET, np.array
 
 
 n_levels = 2
-
 name_tag_faces_boundary_meshsets = 'FACES_BOUNDARY_MESHSETS_LEVEL_'
 all_meshsets = [meshsets_nv1, meshsets_nv2]
 t0 = time.time()
@@ -1022,6 +1068,7 @@ for i in range(n_levels):
 t1 = time.time()
 print('tempo faces contorno')
 print(t1-t0)
+##################################################################################################################
 all_vertex_d1=M1.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([D1_tag]), np.array([3]))
 all_vertex_d1=np.uint64(np.array(rng.unite(all_vertex_d1,M1.mb.get_entities_by_type_and_tag(0, types.MBTET, np.array([D1_tag]), np.array([3])))))
 mm=0
@@ -1061,7 +1108,6 @@ for meshset in meshsets_nv2:
     nc = M1.mb.tag_get_data(primal_id_tag2, meshset, flat=True)[0]
     elems = M1.mb.get_entities_by_handle(meshset)
     M1.mb.tag_set_data(fine_to_primal2_classic_tag, elems, np.repeat(nc, len(elems)))
-
 
 # Gera a matriz dos coeficientes
 
@@ -1127,8 +1173,7 @@ def set_kequiv(self,conj_faces,adjs):
     K2 = (k2*abs(direction)).max(axis=1)/norm_direction
     Kharm=2*K1*K2/(K1+K2)
 
-    # Keq=Kharm*area/norm_direction
-    Keq=Kharm
+    Keq=Kharm*area/norm_direction
     # Keq=np.ones(len(Kharm))
     other_faces=np.setdiff1d(np.uint64(M1.all_faces),conj_faces)
     M1.mb.tag_set_data(self.k_eq_tag, conj_faces, Keq)
@@ -1137,23 +1182,54 @@ def set_kequiv(self,conj_faces,adjs):
     M1.mb.tag_set_data(self.k_eq_tag, other_faces, np.zeros(len(other_faces)))
     M1.mb.tag_set_data(self.kharm_tag, other_faces, np.zeros(len(other_faces)))
 
-    #self.mb.tag_set_data(self.kharm_tag, self.all_faces, kharm)
-
+    # self.mb.tag_set_data(self.kharm_tag, self.all_faces, kharm)
+    return deltas
 
 ################################################################################
 all_intern_faces=[face for face in M1.all_faces if len(M1.mb.get_adjacencies(face, 3))==2]
 all_intern_adjacencies=np.array([M1.mb.get_adjacencies(face, 3) for face in all_intern_faces])
-all_adjacent_volumes=[]
-all_adjacent_volumes.append(M1.mb.tag_get_data(M1.ID_reordenado_tag,np.array(all_intern_adjacencies[:,0]),flat=True))
-all_adjacent_volumes.append(M1.mb.tag_get_data(M1.ID_reordenado_tag,np.array(all_intern_adjacencies[:,1]),flat=True))
+
 
 t1=time.time()
-set_kequiv(M1,all_intern_faces,all_intern_adjacencies)
+deltas=set_kequiv(M1,all_intern_faces,all_intern_adjacencies)
 print("setou k",time.time()-t1)
 
 kst=M1.mb.tag_get_data(M1.k_eq_tag,all_intern_faces,flat=True)
 
-################################################################################
+if corrigir_pocos:
+    if conectar_pocos:
+        z_1=np.array([M1.mtu.get_average_position([v]) for v in volumes_n1])[:,2]
+        z_1_min=z_1.min()
+        pos1=np.where(z_1==z_1_min)[0][0]
+
+        z_2=np.array([M1.mtu.get_average_position([v]) for v in volumes_n2])[:,2]
+        z_2_max=z_2.max()
+        pos2=np.where(z_2==z_2_max)[0][0]
+
+        v1v2=np.uint64([np.array(volumes_n1)[pos1],np.array(volumes_n2)[pos2]])
+        IDs_12=M1.mb.tag_get_data(M1.ID_reordenado_tag,v1v2,flat=True)
+        K_12=kst.max()
+        # all_intern_adjacencies=np.concatenate([all_intern_adjacencies,np.array([v1v2])])
+        # kst=np.concatenate([kst,np.array([kst.max()])])
+
+    faces_n=[]
+    for v in volumes_n: faces_n.append(np.array(M1.mtu.get_bridge_adjacencies(v,3,2)))
+    fc_n=np.concatenate(faces_n)
+    facs_nn=[]
+    for f in fc_n:
+        if len(np.where(fc_n==f)[0])==2:facs_nn.append(f)
+    facs_nn=np.unique(np.uint64(facs_nn))
+    ks_neu=M1.mb.tag_get_data(M1.k_eq_tag,facs_nn,flat=True)
+    print(len(fc_n),len(facs_nn))
+    vals=np.repeat(kst.max(),len(facs_nn))
+    M1.mb.tag_set_data(M1.k_eq_tag, np.uint64(facs_nn), vals)
+    kst=M1.mb.tag_get_data(M1.k_eq_tag,all_intern_faces,flat=True)
+
+#####################################################
+all_adjacent_volumes=[]
+all_adjacent_volumes.append(M1.mb.tag_get_data(M1.ID_reordenado_tag,np.array(all_intern_adjacencies[:,0]),flat=True))
+all_adjacent_volumes.append(M1.mb.tag_get_data(M1.ID_reordenado_tag,np.array(all_intern_adjacencies[:,1]),flat=True))
+###############################################################################
 inter_teste=np.uint64(all_intern_faces)
 def add_topology(conj_vols,tag_local,lista):
     all_fac=np.uint64(M1.mtu.get_bridge_adjacencies(conj_vols, 2 ,2))
@@ -1170,7 +1246,6 @@ def add_topology(conj_vols,tag_local,lista):
     lista.append(adjs2)
     lista.append(adjsg1)
     lista.append(adjsg2)
-
 
 local_id_int_tag = M1.mb.tag_get_handle("local_id_internos", 1, types.MB_TYPE_INTEGER, types.MB_TAG_SPARSE, True)
 local_id_fac_tag = M1.mb.tag_get_handle("local_fac_internos", 1, types.MB_TYPE_INTEGER, types.MB_TAG_SPARSE, True)
@@ -1395,7 +1470,33 @@ for meshset in meshsets_nv1:
     M1.mb.tag_set_data(primal_id_tag1, meshset, nc)
 
 #############################################
-## malha adm 1
+## set termo fonte
+
+ln=[]
+cn=[]
+dn=[]
+
+lines=[]
+cols=[]
+data=[]
+
+IDs_globais_d=M1.mb.tag_get_data(M1.ID_reordenado_tag,volumes_d,flat=True)
+lines_d=IDs_globais_d
+cols_d=np.zeros((1,len(lines_d)),dtype=np.int32)[0]
+data_d=np.repeat(press,len(lines_d))
+
+IDs_globais_n=M1.mb.tag_get_data(M1.ID_reordenado_tag,volumes_n,flat=True)
+lines_n=IDs_globais_n
+cols_n=np.zeros(len(lines_n))
+if so_pressao:
+    data_n=np.repeat(vazao,len(lines_n))
+else:
+    data_n=np.repeat(-vazao/len(volumes_n),len(lines_n))
+
+lines=np.concatenate([lines_d,lines_n])
+cols=np.concatenate([cols_d,cols_n])
+data=np.concatenate([data_d,data_n])
+b=csc_matrix((data,(lines,cols)),shape=(len(M1.all_volumes),1))
 
 ################################################################################
 tempo0_ADM=time.time()
@@ -1581,6 +1682,20 @@ lines=np.concatenate([lines,Gid_2])
 cols=np.concatenate([cols,Gid_2])
 data=np.concatenate([data,-ks])
 #T[Gid_2][Gid_2]-=1
+if conectar_pocos and conectar_pocos:
+    # T[IDs_12]=K_12
+    lines=np.concatenate([lines,np.array([IDs_12[0]])])
+    cols=np.concatenate([cols,np.array([IDs_12[1]])])
+    data=np.concatenate([data,np.array([K_12])])
+    cols=np.concatenate([cols,np.array([IDs_12[0]])])
+    lines=np.concatenate([lines,np.array([IDs_12[1]])])
+    data=np.concatenate([data,np.array([K_12])])
+    lines=np.concatenate([lines,np.array([IDs_12[0]])])
+    cols=np.concatenate([cols,np.array([IDs_12[0]])])
+    data=np.concatenate([data,np.array([-K_12])])
+    lines=np.concatenate([lines,np.array([IDs_12[1]])])
+    cols=np.concatenate([cols,np.array([IDs_12[1]])])
+    data=np.concatenate([data,np.array([-K_12])])
 
 T=csc_matrix((data,(lines,cols)),shape=(len(M1.all_volumes),len(M1.all_volumes)))
 Aii=csc_matrix((dii,(lii,cii)),shape=(ni,ni))
@@ -1608,44 +1723,144 @@ invAii=get_invAii()
 PAD=vstack([-invAii*(Aif*M3),PAD])
 del(M3)
 print("get_OP_AMS", time.time()-tams)
-OP_AMS=PAD
-l1=M1.mb.tag_get_data(fine_to_primal1_classic_tag, M1.all_volumes, flat=True)
-c1=M1.mb.tag_get_data(M1.ID_reordenado_tag, M1.all_volumes, flat=True)
-d1=np.ones((1,len(l1)),dtype=np.int)[0]
-OR_AMS=csc_matrix((d1,(l1,c1)),shape=(nv,len(M1.all_volumes)))
+OP_AMS=PAD.copy()
+del(PAD)
+del(invAii)
+del(invAff)
+del(invAee)
+def get_OR_AMS():
+    l1=M1.mb.tag_get_data(fine_to_primal1_classic_tag, M1.all_volumes, flat=True)
+    c1=M1.mb.tag_get_data(M1.ID_reordenado_tag, M1.all_volumes, flat=True)
+    d1=np.ones((1,len(l1)),dtype=np.int)[0]
+    OR_AMS=csc_matrix((d1,(l1,c1)),shape=(nv,len(M1.all_volumes)))
+    return(OR_AMS)
+
+OR_AMS=get_OR_AMS()
+
+v=M1.mb.create_meshset()
+M1.mb.add_entities(v,vertices)
+inte=M1.mb.get_entities_by_type_and_tag(v, types.MBHEX, np.array([D2_tag]), np.array([0]))
+fac=M1.mb.get_entities_by_type_and_tag(v, types.MBHEX, np.array([D2_tag]), np.array([1]))
+are=M1.mb.get_entities_by_type_and_tag(v, types.MBHEX, np.array([D2_tag]), np.array([2]))
+ver=M1.mb.get_entities_by_type_and_tag(v, types.MBHEX, np.array([D2_tag]), np.array([3]))
+M1.mb.tag_set_data(fine_to_primal2_classic_tag, ver, np.arange(len(ver)))
+
+nint=len(inte)
+nfac=len(fac)
+nare=len(are)
+nver=len(ver)
+
+def get_OP_AMS_2():
+    cols=M1.mb.tag_get_data(fine_to_primal1_classic_tag,np.concatenate([inte,fac,are,ver]),flat=True)
+    lines=range(len(cols))
+    data=np.ones(len(cols))
+
+    G=csc_matrix((data,(lines,cols)),shape=(len(vertices),len(vertices)))
+
+    T_AMS=OR_AMS*T*OP_AMS
+    W_AMS=G*T_AMS*G.transpose()
+
+    ni=nint
+    nf=nfac
+    na=nare
+    nv=nver
+
+    Aii=W_AMS[0:ni,0:ni]
+    Aif=W_AMS[0:ni,ni:ni+nf]
+    Aie=W_AMS[0:ni,ni+nf:ni+nf+na]
+    Aiv=W_AMS[0:ni,ni+nf+na:ni+nf+na+nv]
+
+    lines=[]
+    cols=[]
+    data=[]
+    if MPFA_NO_NIVEL_2==False:
+        lines=range(ni)
+        data=np.array(Aie.sum(axis=1)+Aiv.sum(axis=1)).transpose()[0]
+        S=csc_matrix((data,(lines,lines)),shape=(ni,ni))
+        Aii += S
+        del(S)
+
+    Afi=W_AMS[ni:ni+nf,0:ni]
+    Aff=W_AMS[ni:ni+nf,ni:ni+nf]
+    Afe=W_AMS[ni:ni+nf,ni+nf:ni+nf+na]
+    Afv=W_AMS[ni:ni+nf,ni+nf+na:ni+nf+na+nv]
+
+    lines=range(nf)
+    data_fi=np.array(Afi.sum(axis=1)).transpose()[0]
+    data_fv=np.array(Afv.sum(axis=1)).transpose()[0]
+
+    Sfi=csc_matrix((data_fi,(lines,lines)),shape=(nf,nf))
+    Aff += Sfi
+    if MPFA_NO_NIVEL_2==False:
+        Sfv=csc_matrix((data_fv,(lines,lines)),shape=(nf,nf))
+        Aff +=Sfv
+
+    Aei=W_AMS[ni+nf:ni+nf+na,0:ni]
+    Aef=W_AMS[ni+nf:ni+nf+na,ni:ni+nf]
+    Aee=W_AMS[ni+nf:ni+nf+na,ni+nf:ni+nf+na]
+    Aev=W_AMS[ni+nf:ni+nf+na,ni+nf+na:ni+nf+na+nv]
+
+    lines=range(na)
+    data=np.array(Aei.sum(axis=1)+Aef.sum(axis=1)).transpose()[0]
+    S=csc_matrix((data,(lines,lines)),shape=(na,na))
+    Aee += S
+
+    Ivv=scipy.sparse.identity(nv)
+    invAee=lu_inv2(Aee)
+    M2=-csc_matrix(invAee)*Aev
+    P2=vstack([M2,Ivv])
+
+    invAff=lu_inv2(Aff)
+    if MPFA_NO_NIVEL_2:
+        M3=-invAff*Afe*M2-invAff*Afv
+        P2=vstack([M3,P2])
+    else:
+        Mf=-invAff*Afe*M2
+        P2=vstack([Mf,P2])
+    invAii=lu_inv2(Aii)
+    if MPFA_NO_NIVEL_2:
+        M3=invAii*(-Aif*M3+Aie*invAee*Aev-Aiv)
+        P2=vstack([M3,P2])
+    else:
+        P2=vstack([-invAii*Aif*Mf,P2])
+
+    # IDs_dirichlet=M1.mb.tag_get_data(fine_to_primal1_classic_tag,volumes_n,flat=True)
+    # bn=b.copy()
+    # bn[IDs_dirichlet]=0
+
+    b_ams2_wire=G*OR_AMS*b
+    b_ams2_int=b_ams2_wire[0:ni,0]
+    b_ams2_fac=b_ams2_wire[ni:ni+nf,0]
+    b_ams2_are=b_ams2_wire[ni+nf:ni+nf+na,0]
+    b_ams2_ver=b_ams2_wire[ni+nf+na:ni+nf+na+nv,0]
+
+    corr=csc_matrix((len(ver),1))
+    corr=vstack([invAee*b_ams2_are,corr])
+    corr=vstack([invAff*b_ams2_fac-invAff*Afe*invAee*b_ams2_are,corr])
+    corr=vstack([invAii*b_ams2_int-invAii*Aif*invAff*b_ams2_fac+invAii*(Aif*invAff*Afe*invAee-Aie*invAee)*b_ams2_are,corr])
+
+    c2=csc_matrix((nv,ni+nf+na+nv))
+    c2=vstack([hstack([hstack([csc_matrix((na,ni+nf)),invAee]),csc_matrix((na,nv))]),c2])
+    c2=vstack([hstack([hstack([hstack([csc_matrix((nf,ni)),invAff]),-invAff*Afe*invAee]),csc_matrix((nf,nv))]),c2])
+    c2=vstack([hstack([hstack([hstack([invAii,-invAii*Aif*invAff]),invAii*(Aif*invAff*Afe*invAee-Aie*invAee)]),csc_matrix((ni,nv))]),c2])
+    c2=csc_matrix(c2)
+
+    return G.transpose()*P2, G.transpose()*c2*G
+
+OP_AMS_2, corr=get_OP_AMS_2()
+
 
 ##################condições de contorno#######################
 ID_global=M1.mb.tag_get_data(M1.ID_reordenado_tag,volumes_d, flat=True)
 T[ID_global]=scipy.sparse.csc_matrix((len(ID_global),T.shape[0]))
 T[ID_global,ID_global]=np.ones(len(ID_global))
 ########################## apagar para usar pressão-vazão
-ID_globaln=M1.mb.tag_get_data(M1.ID_reordenado_tag,volumes_n, flat=True)
-T[ID_globaln]=scipy.sparse.csc_matrix((len(ID_globaln),T.shape[0]))
-T[ID_globaln,ID_globaln]=np.ones(len(ID_globaln))
-##################################################fim_cond contorno#############
+if so_pressao:
+    ID_globaln=M1.mb.tag_get_data(M1.ID_reordenado_tag,volumes_n, flat=True)
+    T[ID_globaln]=scipy.sparse.csc_matrix((len(ID_globaln),T.shape[0]))
+    T[ID_globaln,ID_globaln]=np.ones(len(ID_globaln))
+    ##################################################fim_cond contorno#############
 
-ln=[]
-cn=[]
-dn=[]
-
-lines=[]
-cols=[]
-data=[]
-
-IDs_globais_d=M1.mb.tag_get_data(M1.ID_reordenado_tag,volumes_d,flat=True)
-lines_d=IDs_globais_d
-cols_d=np.zeros((1,len(lines_d)),dtype=np.int32)[0]
-data_d=np.repeat(press,len(lines_d))
-
-IDs_globais_n=M1.mb.tag_get_data(M1.ID_reordenado_tag,volumes_n,flat=True)
-lines_n=IDs_globais_n
-cols_n=np.zeros(len(lines_n))
-data_n=np.repeat(vazao,len(lines_n))
-
-lines=np.concatenate([lines_d,lines_n])
-cols=np.concatenate([cols_d,cols_n])
-data=np.concatenate([data_d,data_n])
-b=csc_matrix((data,(lines,cols)),shape=(len(M1.all_volumes),1))
 #############################################################################
 LIN_tag=M1.mb.tag_get_handle("LIN_tag", 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
 COL_tag=M1.mb.tag_get_handle("COL_tag", 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
@@ -1679,7 +1894,7 @@ M1.mb.tag_set_data(diag_tag,vertices,diag_RTP)
 ###########################################################
 GIDs=M1.mb.tag_get_data(M1.ID_reordenado_tag,M1.all_volumes,flat=True)
 #####################################################################
-def ADM_mesh(finos):
+def ADM_mesh(finos,intermediarios):
     tadmmesh=time.time()
     n1=-1
     n2=-1
@@ -1694,6 +1909,8 @@ def ADM_mesh(finos):
             #ver_1=rng.unite(ver_1,M1.mb.get_entities_by_type_and_tag(m1, types.MBTET, np.array([D1_tag]), np.array([3])))
             if ver_1[0] in finos:
                 aux=1
+                tem_poço_no_vizinho=True
+            if ver_1[0] in intermediarios:
                 tem_poço_no_vizinho=True
             else:
                 #if (ar4/a9>0.02 and (ar6<40 or a9<0.05 or r_k_are_ver>10000)) or (ar4/a9>0.04 and (ar6<40 or a9<0.1 or r_k_are_ver>5000)) or (ar4/a9>0.1 and (ar6<100 and a9<0.4 and r_k_are_ver>100)) or (ar4/a9>0.2 and (ar6<300 and a9<0.3 and r_k_are_ver>1000)) or (ar4/a9>0.25 and (ar6<400 or a9<0.5 or r_k_are_ver>500)):
@@ -1745,8 +1962,6 @@ def ADM_mesh(finos):
     return(n1,n2)
 
 def organize_OP(PAD):
-
-
     torganize=time.time()
     OP4=PAD.copy()
     mver=M1.mb.create_meshset()
@@ -1777,7 +1992,40 @@ def organize_OP(PAD):
     somar=csc_matrix((data,(lines,cols)),shape=(len(M1.all_volumes),n1))
 
     operador1=permut_elim*PAD*permut+somar
-    #print(time.time()-torganize,"organize novo!!!")
+    print(time.time()-torganize,"organize novo!!!")
+    return operador1
+
+def organize_OP_2(OP_AMS_2):
+    torganize=time.time()
+    OP4=OP_AMS_2.copy()
+    mver=M1.mb.create_meshset()
+    M1.mb.add_entities(mver,vertices)
+    vnv2=M1.mb.get_entities_by_type_and_tag(mver, types.MBHEX, np.array([L3_ID_tag]), np.array([3]))
+    IDs_AMS_vs=M1.mb.tag_get_data(fine_to_primal1_classic_tag,vnv2,flat=True)
+    IDs_ADM_vs=M1.mb.tag_get_data(L1_ID_tag,vnv2,flat=True)
+    data=np.ones(len(IDs_AMS_vs))
+    permut_elim=csc_matrix((data,(IDs_ADM_vs,IDs_AMS_vs)),shape=(n1,len(vertices)))
+
+    IDs_AMS_vert=M1.mb.tag_get_data(fine_to_primal2_classic_tag,ver,flat=True)
+    IDs_ADM_vert=M1.mb.tag_get_data(L2_ID_tag,ver,flat=True)
+    lines=IDs_AMS_vert
+    cols=IDs_ADM_vert
+    data=np.ones(len(lines))
+    permut=csc_matrix((data,(lines,cols)),shape=(len(ver),n2))
+    vnv0=np.setdiff1d(vertices,vnv2)
+
+    all_v_nv0=M1.mb.get_entities_by_type_and_tag(0, types.MBHEX, np.array([L3_ID_tag]), np.array([1]))
+    vnv0=np.unique(np.concatenate([vnv0,all_v_nv0]))
+
+    IDs_ADM_vnv0=M1.mb.tag_get_data(L1_ID_tag,vnv0,flat=True)
+    IDs_AMS_vnv0=M1.mb.tag_get_data(L2_ID_tag,vnv0,flat=True)
+    lines=IDs_ADM_vnv0
+    cols=IDs_AMS_vnv0
+    data=np.ones(len(lines))
+
+    somar=csc_matrix((data,(lines,cols)),shape=(n1,n2))
+    operador1=permut_elim*OP4*permut+somar
+    print(time.time()-torganize,'organize_OP_2')
     return operador1
 
 def get_OR_ADM():
@@ -1787,7 +2035,19 @@ def get_OR_ADM():
     (1,len(l1)),dtype=np.int)[0]
     return csc_matrix((d1,(l1,c1)),shape=(n1,len(M1.all_volumes)))
 
-def itere(xini,multip):
+def get_OR_ADM_2():
+    l1=M1.mb.tag_get_data(L2_ID_tag, M1.all_volumes, flat=True)
+    c1=M1.mb.tag_get_data(L1_ID_tag, M1.all_volumes, flat=True)
+    d1=np.ones(len(l1))
+    OR_ADM_2=csc_matrix((d1,(l1,c1)),shape=(n2,n1))
+    r2=find(OR_ADM_2)
+    lin=r2[0]
+    col=r2[1]
+    dat=np.ones((1,len(lin)),dtype=np.int)[0]
+    OR_ADM_2=csc_matrix((dat,(lin,col)),shape=(n2,n1))
+    return OR_ADM_2
+
+def itere2(xini,multip):
     titer=time.time()
     x0=xini
     ran=range(len(M1.all_volumes))
@@ -1809,7 +2069,7 @@ def itere(xini,multip):
     # print(time.time()-titer,cont,delta,"tempo,  num_iterações,delta")
     return(x0,delta)
 
-def itere2(xini,delta_max):
+def itere(xini,delta_max):
     titer=time.time()
     x0=xini
     ran=range(len(M1.all_volumes))
@@ -1826,10 +2086,72 @@ def itere2(xini,delta_max):
     while  delta>delta_max:
         for i in range(n):x0=D_inv*(b-R*x0)
         delta=(D_inv*(b-R*x0)-x0).max()
-        #print(delta,delta_max,"delta e delta_max")
+        if cont==0:
+            delta_max=delta/5
+        print(delta,delta_max,"delta e delta_max")
         cont+=n
     x0=x0.toarray().transpose()[0]
+
     return(x0,delta)
+
+def itere3(xini):
+    titer=time.time()
+    ran=range(len(M1.all_volumes))
+    D=T[ran,ran].toarray()[0]
+    l_inv=range(len(M1.all_volumes))
+    data_inv=1/D
+    D_inv=csc_matrix((data_inv,(l_inv,l_inv)),shape=(len(M1.all_volumes),len(M1.all_volumes)))
+    D=csc_matrix((D,(l_inv,l_inv)),shape=(len(M1.all_volumes),len(M1.all_volumes)))
+    R=T-D
+    x0=csc_matrix(xini).transpose()
+    n=50
+    cont=0
+    for i in range(n):x0=D_inv*(b-R*x0)
+    delta_ant=abs((D_inv*(b-R*x0)-x0)).max()
+    cont+=n
+    for i in range(n):x0=D_inv*(b-R*x0)
+    delta=abs((D_inv*(b-R*x0)-x0)).max()
+    cont+=n
+    while  delta<0.6*delta_ant:
+        delta_ant=delta
+        for i in range(n):x0=D_inv*(b-R*x0)
+        delta=abs((D_inv*(b-R*x0)-x0)).max()
+        cont+=n
+    x0=x0.toarray().transpose()[0]
+    print(time.time()-titer,n, "iterou ")
+    return(x0)
+
+def itere_ver(xini):
+    titer=time.time()
+    ifa=len(internos)+len(faces)+len(arestas)
+    lc=range(ifa,len(M1.all_volumes))
+    D=T[lc,lc].toarray()[0]
+    l_inv=range(len(vertices))
+    c_inv=lc
+    data_inv=1/D
+    D_inv=csc_matrix((data_inv,(l_inv,l_inv)),shape=(len(vertices),len(M1.all_volumes)))
+    D=csc_matrix((D,(l_inv,c_inv)),shape=(len(vertices),len(M1.all_volumes)))
+    R=T[lc]-D
+    x0=csc_matrix(xini).transpose()
+    cont=0
+    n=100
+    bv=b[IDs_vertices]
+    import pdb; pdb.set_trace()
+    for i in range(n):x0=D_inv*(bv-R*x0)
+    delta_ant=(D_inv*(b-R*x0)-x0).max()
+    cont+=n
+    for i in range(n):x0=D_inv*(bv-R*x0)
+    delta=(D_inv*(b-R*x0)-x0).max()
+    cont+=n
+    while  delta_ant>1.1*delta:
+        delta_ant=delta
+        for i in range(n):x0=D_inv*(bv-R*x0)
+        delta=(D_inv*(b-R*x0)-x0).max()
+        print(delta,delta_max,"delta e delta_max")
+        cont+=n
+    x0=x0.toarray().transpose()[0]
+    import pdb; pdb.set_trace()
+    return(x0)
 
 def get_raz(raz_anterior,col_anterior):
     RTP=OR_ADM*T*OP_ADM
@@ -1876,290 +2198,181 @@ def get_raz(raz_anterior,col_anterior):
     return(amss,rnp.max(),rnp2.max())
 #####################################################################
 IDs_vertices=range(ni+na+nf,ni+na+nf+nv)
+#####################################################################
+Pseudo_ERRO_tag=M1.mb.tag_get_handle("pseudo_erro", 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
+ERRO_tag=M1.mb.tag_get_handle("erro", 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
+P_TPFA_tag=M1.mb.tag_get_handle("P_TPFA", 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
+P_ADM_tag=M1.mb.tag_get_handle("P_ADM", 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
+av=M1.mb.create_meshset()
+M1.mb.add_entities(av,M1.all_volumes)
 
-tolC=0.3
-tolL=0.8
-posL=np.where(rnp>tolL)[0]
-posC=np.where(rnp2>tolC)[0]
-pC=np.where(rnp2>0.2)[0]
-pL=np.where(rnp>0.6)[0]
-p1=np.intersect1d(pC,pL)
-positions=posL
-positions=np.concatenate([positions,p1])
-refs=np.array(vertices)[positions]
-finos=np.intersect1d(np.array(vertices),finos)
-finos=np.concatenate([finos,refs])
 if calc_TPFA:
     SOL_TPFA=linalg.spsolve(T,b)
+    LU=linalg.splu(T)
+    sol=LU.solve(b.toarray())
     print("resolveu TPFA: ",time.time()-t0)
     np.save('SOL_TPFA.npy',SOL_TPFA)
-else:
-    SOL_TPFA=np.load('SOL_TPFA.npy')
-    print("leu TPFA: ")
 
+if load_TPFA:
+    SOL_TPFA=np.load('SOL_TPFA.npy')
+
+active_nodes=[]
+perro=[]
+erro=[]
+
+
+Nmax=tol_n2*len(M1.all_volumes)
 
 finos=np.array(rng.unite(volumes_n,volumes_d))
+
+
+pfins=np.unique(M1.mb.tag_get_data(fine_to_primal1_classic_tag,finos,flat=True))
+
+nr=int(tol_n2*(len(vertices)-len(finos))/(Ni))
+
+n1,n2=ADM_mesh(finos,[])
+
+pseudo_erro=np.repeat(TOL+1,2) #iniciou pseudo_erro
+t0=time.time()
+cont=0
+if not iterar_mono:
+    OP_ADM=organize_OP(OP_AMS)
+    OR_ADM=get_OR_ADM()
+    SOL_ADM=linalg.spsolve(OR_ADM*T*OP_ADM,OR_ADM*b)
+    SOL_ADM_fina=OP_ADM*SOL_ADM
+
+while max(pseudo_erro)>TOL and n2<Nmax and iterar_mono:
+    if cont>0:
+        lim=np.sort(psr)[len(psr)-nr-1]
+        positions=np.where(psr>lim)[0]
+        finos=np.concatenate([finos,np.array(vertices)[positions]])
+        pfins=np.concatenate([pfins,positions])
+        n1,n2=ADM_mesh(finos,[])
+    OP_ADM=organize_OP(OP_AMS)
+    OR_ADM=get_OR_ADM()
+    if testar_MPFA:
+        OP_ADM_2=organize_OP_2(OP_AMS_2)
+        OR_ADM_2=get_OR_ADM_2()
+        SOL_ADM=linalg.spsolve(OR_ADM_2*OR_ADM*T*OP_ADM*OP_ADM_2,OR_ADM_2*OR_ADM*b)
+        SOL_ADM_fina=OP_ADM*OP_ADM_2*SOL_ADM
+    else:
+        SOL_ADM=linalg.spsolve(OR_ADM*T*OP_ADM,OR_ADM*b)
+        SOL_ADM_fina=OP_ADM*SOL_ADM
+    x0=itere3(SOL_ADM_fina)
+    pseudo_erro=abs((SOL_ADM_fina-x0))
+
+    if calc_TPFA or load_TPFA:
+        erro.append(abs((SOL_TPFA-SOL_ADM_fina)/SOL_TPFA).max())
+    else:
+        erro.append(abs(pseudo_erro/x0).max())
+    psr=(OR_AMS*abs(pseudo_erro))
+    psr[pfins]=0
+
+    perro.append(abs((SOL_ADM_fina-x0)/x0).max())
+    active_nodes.append(n2/len(M1.all_volumes))
+    if (not calc_TPFA) and (not load_TPFA):
+        SOL_TPFA=x0
+    if imprimir_a_cada_iteracao:
+        M1.mb.tag_set_data(Pseudo_ERRO_tag,M1.all_volumes,abs(pseudo_erro/x0)[GIDs])
+
+        M1.mb.tag_set_data(ERRO_tag,M1.all_volumes,abs((SOL_ADM_fina-SOL_TPFA)/SOL_TPFA)[GIDs])
+        M1.mb.tag_set_data(P_ADM_tag,M1.all_volumes,SOL_ADM_fina[GIDs])
+        M1.mb.tag_set_data(P_TPFA_tag,M1.all_volumes,SOL_TPFA[GIDs])
+        ext_vtk = 'testes_MAD'  + str(cont) + '.vtk'
+        M1.mb.write_file(ext_vtk,[av])
+    cont+=1
+
+
+IDs_pocos=np.unique(M1.mb.tag_get_data(fine_to_primal1_classic_tag,np.concatenate([volumes_n,volumes_d]),flat=True))
+
+# if so_2_niveis:
+#     n1,n2=ADM_mesh(finos,np.array(vertices))
+#     finos=np.concatenate([finos,np.array(vertices)])
+#     OP_ADM=organize_OP(OP_AMS)
+#     OR_ADM=get_OR_ADM()
+#     OP_ADM_2=organize_OP_2(OP_AMS_2)
+#     OR_ADM_2=get_OR_ADM_2()
+#     SOL_ADM=linalg.spsolve(OR_ADM_2*OR_ADM*T*OP_ADM*OP_ADM_2,OR_ADM_2*OR_ADM*b)
+#     SOL_ADM_fina=OP_ADM*OP_ADM_2*SOL_ADM
+
+
+if so_pressao:
+    P_pocos=np.concatenate([SOL_ADM_fina[IDs_pocos],np.array([press,vazao])])
+else:
+    P_pocos=np.concatenate([SOL_ADM_fina[IDs_pocos],np.array([press])])
+pmin=min(P_pocos)
+
+if (refinar_nv2 and iterar_mono and cont>0):
+    cont+=1
+    #DMP
+    p2=np.where(SOL_ADM_fina[IDs_vertices]<pmin)[0]
+    finos=np.concatenate([finos,np.array(vertices)[p2]])
+    OP_ADM_2=organize_OP_2(OP_AMS_2)
+    OR_ADM_2=get_OR_ADM_2()
+    SOL_ADM=linalg.spsolve(OR_ADM_2*OR_ADM*T*OP_ADM*OP_ADM_2,OR_ADM_2*OR_ADM*b)
+    SOL_ADM_fina=OP_ADM*OP_ADM_2*SOL_ADM
+    err2=abs(SOL_ADM_fina-x0)[IDs_vertices]
+    pemax=pseudo_erro.max()
+    positions=np.where(err2>rel_v2*pemax)[0]
+    if len(positions)>0 or len(p2)>0:
+        n1,n2=ADM_mesh(finos,np.array(vertices)[positions])
+        # OP_ADM=organize_OP(OP_AMS)
+        # OP_ADM_2=organize_OP_2(OP_AMS_2)
+        # OR_ADM=get_OR_ADM()
+        # OR_ADM_2=get_OR_ADM_2()
+        SOL_ADM=linalg.spsolve(OR_ADM*T*OP_ADM,OR_ADM*b)
+        SOL_ADM_fina=OP_ADM*SOL_ADM
+        pseudo_erro=abs((SOL_ADM_fina-x0))
+        perro.append(abs((SOL_ADM_fina-x0)/x0).max())
+        active_nodes.append(n2/len(M1.all_volumes))
+        if calc_TPFA or load_TPFA:
+            erro.append(abs((SOL_TPFA-SOL_ADM_fina)/SOL_TPFA).max())
+        else:
+            erro.append(abs(pseudo_erro/x0).max())
+    if imprimir_a_cada_iteracao:
+        M1.mb.tag_set_data(Pseudo_ERRO_tag,M1.all_volumes,abs(pseudo_erro/x0)[GIDs])
+        M1.mb.tag_set_data(ERRO_tag,M1.all_volumes,abs((SOL_ADM_fina-SOL_TPFA)/SOL_TPFA)[GIDs])
+        M1.mb.tag_set_data(P_ADM_tag,M1.all_volumes,SOL_ADM_fina[GIDs])
+        ext_vtk = 'testes_MAD'  + str(cont) + '.vtk'
+        M1.mb.write_file(ext_vtk,[av])
+
+OP_ADM_2=organize_OP_2(OP_AMS_2)
+OR_ADM_2=get_OR_ADM_2()
+try:
+    SOL_ADM=linalg.spsolve(OR_ADM_2*OR_ADM*T*OP_ADM*OP_ADM_2,OR_ADM_2*OR_ADM*b)
+except:
+    OP_ADM=organize_OP(OP_AMS)
+    OR_ADM=get_OR_ADM()
+    SOL_ADM=linalg.spsolve(OR_ADM_2*OR_ADM*T*OP_ADM*OP_ADM_2,OR_ADM_2*OR_ADM*b)
+SOL_ADM_fina=OP_ADM*OP_ADM_2*SOL_ADM
+
+print(time.time()-t0)
+
+plt.close()
+plt.scatter(np.array(active_nodes),np.log(np.array(perro)),3,'r')
+plt.plot(np.array(active_nodes),np.log(np.array(perro)),'r')
+
+plt.scatter(np.array(active_nodes),np.log(np.array(erro)),3,'g')
+plt.plot(np.array(active_nodes),np.log(np.array(erro)),'g')
+plt.savefig("l_inf2.png")
 plt.close()
 
-n1,n2=ADM_mesh(finos)
-OP_ADM=organize_OP(PAD)
-OR_ADM=get_OR_ADM()
-
-classic_ID=M1.mb.tag_get_data(fine_to_primal1_classic_tag,M1.all_volumes,flat=True)
-ADM=M1.mb.tag_get_data(L1_ID_tag,M1.all_volumes,flat=True)
-ADM1_to_AMS=dict(zip(ADM,classic_ID))
-
-amss,l1,c1=get_raz(100,100)
-amss,l1,c1=get_raz(l1,c1)
-
-refs=np.array(vertices)[amss]
-finos=np.concatenate([finos,refs])
-
-n1,n2=ADM_mesh(finos)
-OP_ADM=organize_OP(PAD)
-OR_ADM=get_OR_ADM()
-
-SOL_ADM_1=linalg.spsolve(OR_ADM*T*OP_ADM,OR_ADM*b)
-SOL_ADM_1fina=OP_ADM*SOL_ADM_1
-x0,delta=itere(SOL_ADM_1fina,2)
-pseudo_erro=abs((SOL_ADM_1fina-x0)/x0)
-# pseudo_erro_restringido=OR_AMS*pseudo_erro
-pseudo_erro_restringido=pseudo_erro[IDs_vertices]
-erro=abs(SOL_ADM_1fina-SOL_TPFA)/SOL_TPFA
-# plt.plot(range(len(vertices)),np.sort(np.log(pseudo_erro[IDs_vertices]+0.001)),'y')
-# plt.plot(range(len(vertices)),np.sort(np.log(erro[IDs_vertices]+0.001)),'b')
-# plt.savefig("erro_verde,pseudo_erro_vermelho.png")
-print(max(erro)*100,np.linalg.norm(SOL_ADM_1fina-SOL_TPFA)/np.linalg.norm(SOL_TPFA),"erro max percentual e norma l2")
-# for i in range(5):
-#     ###############################################################################
-#     positions=np.where(pseudo_erro_restringido>max(pseudo_erro_restringido)/(9-i))[0]
-#     refs=np.array(vertices)[positions]
-#     finos=np.concatenate([finos,refs])
-#     n1,n2=ADM_mesh(finos)
-#     OP_ADM=organize_OP(PAD)
-#     OR_ADM=get_OR_ADM()
-#     SOL_ADM_1=linalg.spsolve(OR_ADM*T*OP_ADM,OR_ADM*b)
-#     SOL_ADM_1fina=OP_ADM*SOL_ADM_1
-#     x0,delta=itere(SOL_ADM_1fina,delta)
-#     pseudo_erro=abs((SOL_ADM_1fina-x0)/x0)
-#     pseudo_erro_restringido=OR_AMS*pseudo_erro
-#     erro=abs(SOL_ADM_1fina-SOL_TPFA)/SOL_TPFA
-#     plt.plot(range(len(M1.all_volumes)),np.sort(np.log(pseudo_erro+0.001)),'y')
-#     plt.plot(range(len(M1.all_volumes)),np.sort(np.log(erro+0.001)),'b')
-#     plt.savefig("erro_verde,pseudo_erro_vermelho.png")
-#     print(max(erro)*100,np.linalg.norm(SOL_ADM_1fina-SOL_TPFA)/np.linalg.norm(SOL_TPFA),"erro max percentual e norma l2")
-    #################################################################################
+perms_xx=M1.mb.tag_get_data(M1.perm_tag,M1.all_volumes)[:,0]
 Pseudo_ERRO_tag=M1.mb.tag_get_handle("pseudo_erro", 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
 ERRO_tag=M1.mb.tag_get_handle("erro", 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
 P_TPFA_tag=M1.mb.tag_get_handle("P_TPFA", 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
 P_ADM_tag=M1.mb.tag_get_handle("P_ADM", 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
 perm_xx_tag=M1.mb.tag_get_handle("Perm_xx", 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
-av=M1.mb.create_meshset()
-M1.mb.add_entities(av,M1.all_volumes)
-
-ADM=M1.mb.tag_get_data(L1_ID_tag,M1.all_volumes,flat=True)
-#####################################################################
-classic_ID=M1.mb.tag_get_data(fine_to_primal1_classic_tag,M1.all_volumes,flat=True)
-reord_to_classic=dict(zip(GIDs,classic_ID))
-ADM1_to_AMS=dict(zip(ADM,classic_ID))
-psr=OR_AMS*pseudo_erro
-
-tol=data_loaded['tol']
-#tol_n2=len(M1.all_volumes)/2
-tol_n2 = data_loaded['tol_n2']
-tol_n2=tol_n2*len(M1.all_volumes)
-cont=1
-continuar=True
-mpante=pseudo_erro_restringido.max()
-refins=data_loaded['refins']
-nr0=int(len(vertices)*refins)
-perro=[]
-ppseudo=[]
-
-lg=[]
-LL1=[]
-LL2=[]
-LL1.append(l1)
-LL2.append(c1)
-lg.append(100*n2/len(M1.all_volumes))
-nl2=[]
-nl2.append(np.linalg.norm(SOL_ADM_1fina-SOL_TPFA)/np.linalg.norm(SOL_TPFA))
-perro.append(erro.max())
-ppseudo.append(pseudo_erro.max())
-
-while max(pseudo_erro)>tol and n2<tol_n2 and continuar:
-    ###############################################################################
-    print(max(pseudo_erro[IDs_vertices]),pseudo_erro.max(),"erro_nos vértices")
-    if pseudo_erro_restringido.max()>0:
-        if cont<3:
-            nr=2*nr0
-            multip=2
-        else:
-            nr=nr0
-            multip=1
-        lim=np.sort(pseudo_erro)[len(pseudo_erro)-nr-1]
-        ps=np.where(pseudo_erro>lim)[0]
-        rmax=lim/pseudo_erro.max()
-        classic=np.unique(np.array([reord_to_classic[v] for v in ps]))
-        i=1
-        while len(classic)<nr:
-            lim=np.sort(pseudo_erro)[len(pseudo_erro)-nr-i-1]
-            ps=np.where(pseudo_erro>lim)[0]
-            rmax=lim/pseudo_erro.max()
-            classic=np.unique(np.array([reord_to_classic[v] for v in ps]))
-            i+=1
-
-        positions=np.unique(classic)
-        lim=np.sort(pseudo_erro_restringido)[len(pseudo_erro_restringido)-len(positions)-1]
-        print(lim,"limite")
-        #positions=np.where(pseudo_erro_restringido>lim)[0]
-        positions_ver=np.where(pseudo_erro_restringido>lim)[0]
-        rver=lim/pseudo_erro_restringido.max()
-
-        lim=np.sort(psr)[len(psr)-len(positions)-1]
-        p2=np.where(psr>lim)[0]
-        rsum=lim/psr.max()
-        if pseudo_erro_restringido.max()>1:
-            # vec=[rmax,rver,rsum]
-            vec=[rver,rmax]
-        else:
-            vec=[rmax]
-            # vec=[rver,rmax,rsum]
-        mv=min(vec)
-        print(vec)
-
-        if mv==rmax:
-            positions=positions
-            print('maximo!!!!!!!!!')
-        if mv==rver:
-            positions=positions_ver
-            print('vertice!!!!!!!!!')
-        if mv==rsum:
-            positions=p2
-            print('soma!!!!!!!!!!!!!!!')
-
-    ADM=M1.mb.tag_get_data(L1_ID_tag,M1.all_volumes,flat=True)
-    ADM1_to_AMS=dict(zip(ADM,classic_ID))
-    raz_anterior=l1
-    col_anterior=c1
-    amss,l1,c1=get_raz(l1,c1)
-    positions=np.concatenate([positions,amss])
-    positions=np.unique(positions)
-    print(len(positions))
-
-    refs=np.array(vertices)[positions]
-    finos=np.concatenate([finos,refs])
-    n1,n2=ADM_mesh(finos)
-    OP_ADM=organize_OP(PAD)
-    OR_ADM=get_OR_ADM()
-    # while l1>0.95*raz_anterior:
-    while False:
-        ADM=M1.mb.tag_get_data(L1_ID_tag,M1.all_volumes,flat=True)
-        ADM1_to_AMS=dict(zip(ADM,classic_ID))
-        amss,l1,c1=get_raz(l1,c1)
-        refs=np.array(vertices)[amss]
-        finos=np.concatenate([finos,refs])
-        n1,n2=ADM_mesh(finos)
-        OP_ADM=organize_OP(PAD)
-        OR_ADM=get_OR_ADM()
-        print(len(amss),l1,raz_anterior,"No loop do fluxo!!!")
-
-    SOL_ADM_fina_ant=SOL_ADM_1fina
-    SOL_ADM_1=linalg.spsolve(OR_ADM*T*OP_ADM,OR_ADM*b)
-    SOL_ADM_1fina=OP_ADM*SOL_ADM_1
-    sol_vers=SOL_ADM_1fina[IDs_vertices]
-    sol_prol=OP_AMS*sol_vers
-    x0,delta=itere(SOL_ADM_1fina,multip)
-    pseudo_erro=abs((SOL_ADM_1fina-x0)/x0)
-
-    LL1.append(l1)
-    LL2.append(c1)
-    lg.append(100*n2/len(M1.all_volumes))
-    nl2.append(np.linalg.norm(SOL_ADM_1fina-SOL_TPFA)/np.linalg.norm(SOL_TPFA))
-
-    plt.close()
-    plt.scatter(lg,np.array(LL1),3,'r')
-    plt.plot(lg,np.array(LL1),'r')
-    #plt.scatter(lg,np.array(LL2),1)
-    plt.savefig("raz_lin.png")
-    plt.close()
-    plt.scatter(lg,np.array(nl2),3,'r')
-    plt.plot(lg,np.array(nl2),'r')
-    plt.savefig("nl2.png")
-    plt.close()
-
-    # pseudo_erro_restringido=OR_AMS*pseudo_erro
-    p1=OR_AMS*pseudo_erro
-    mpante=pseudo_erro_restringido.max()
-    pseudo_erro_restringido=pseudo_erro[IDs_vertices]
-    erro=abs(SOL_ADM_1fina-SOL_TPFA)/SOL_TPFA
-    # plt.plot(range(len(vertices)),np.sort(np.log(pseudo_erro_restringido+0.001)),'y')
-    # plt.plot(range(len(vertices)),np.sort(np.log(erro[IDs_vertices]+0.001)),'b')
-    # plt.savefig("erro_verde,pseudo_erro_vermelho.png")
-    psr=OR_AMS*pseudo_erro
-    # plt.plot(range(len(psr)),np.sort(np.log(psr+0.001)),'g')
-    perro.append(erro.max())
-    ppseudo.append(pseudo_erro.max())
-    plt.close()
-    plt.scatter(lg,100*(np.array(perro)),3,'g')
-    plt.scatter(lg,100*(np.array(ppseudo)),3,'y')
-    plt.plot(lg,100*(np.array(perro)),'g')
-    plt.plot(lg,100*(np.array(ppseudo)),'y')
-    plt.savefig("psr.png")
-    print(max(erro)*100,np.linalg.norm(SOL_ADM_1fina-SOL_TPFA)/np.linalg.norm(SOL_TPFA),"erro max percentual e norma l2")
-
-    if max(pseudo_erro)<tol:
-        print("ATINGIU A TOLERÂNCIA!!!")
-    if n2>tol_n2:
-        print("ATINGIU O TAMANHO MÁXIMO!!!")
-    ############################################
-    cont+=1
-    '''
-    M1.mb.tag_set_data(Pseudo_ERRO_tag,M1.all_volumes,pseudo_erro[GIDs])
-    M1.mb.tag_set_data(ERRO_tag,M1.all_volumes,erro[GIDs])
-    M1.mb.tag_set_data(P_ADM_tag,M1.all_volumes,SOL_ADM_1fina[GIDs])
-    ext_vtk = 'testes_MAD'  + str(cont) + '.vtk'
-    M1.mb.write_file(ext_vtk,[av])'''
-
-#####################################################################################
-'''
-diag_ad1=((OR_ADM*T*OP_ADM)[range(len(SOL_ADM_1)),range(len(SOL_ADM_1))]).toarray()[0]
-mdiag=csc_matrix((1/diag_ad1,(range(len(SOL_ADM_1)),range(len(SOL_ADM_1)))),shape=(len(SOL_ADM_1),len(SOL_ADM_1)))
-S1=linalg.spsolve(mdiag*(OR_ADM*T*OP_ADM),mdiag*OR_ADM*b)'''# teste de precondicionador
 
 
-print("total",time.time()-tomega)
-'''
-if not calc_TPFA:
-    SOL_TPFA=np.load('SOL_TPFA.npy')
-    if len(SOL_TPFA)==len(M1.all_volumes):
-        M1.mb.tag_set_data(P_TPFA_tag,M1.all_volumes,SOL_TPFA[GIDs])
-    else:
-        M1.mb.tag_set_data(P_TPFA_tag,M1.all_volumes,SOL_TPFA)
-else:
-    print("resolvendo TPFA")
-    t0=time.time()
-    if len(M1.all_volumes)<100000:
-        SOL_TPFA=linalg.spsolve(T,b)
-        print("resolveu TPFA: ",time.time()-t0)
-        np.save('SOL_TPFA.npy',SOL_TPFA)
-    else:
-        SOL_TPFA=np.ones(len(M1.all_volumes))
-        print('TPFA muito grande > 30.000 vols!!! não resolveu')'''
-perms_xx=M1.mb.tag_get_data(M1.perm_tag,M1.all_volumes)[:,0]
-
-x=np.array([lg,nl2,perro,LL1,ppseudo]).transpose()
-np.savetxt('PV454545CR333limitadorefin005_homogeneo.csv',x,delimiter=',')
-erro=abs(SOL_TPFA-SOL_ADM_1fina)/SOL_TPFA
-erro_ABS=abs(SOL_TPFA-SOL_ADM_1fina)
-#print(max(erro)*100,np.linalg.norm(erro_ABS)/np.linalg.norm(SOL_TPFA),"erro max percentual e norma l2")
-M1.mb.tag_set_data(Pseudo_ERRO_tag,M1.all_volumes,pseudo_erro[GIDs])
-M1.mb.tag_set_data(ERRO_tag,M1.all_volumes,erro[GIDs])
-M1.mb.tag_set_data(P_ADM_tag,M1.all_volumes,SOL_ADM_1fina[GIDs])
+# M1.mb.tag_set_data(Pseudo_ERRO_tag,M1.all_volumes,pseudo_erro[GIDs])
+M1.mb.tag_set_data(ERRO_tag,M1.all_volumes,(100*abs((SOL_ADM_fina-SOL_TPFA)/SOL_TPFA)[GIDs]))
+M1.mb.tag_set_data(P_ADM_tag,M1.all_volumes,SOL_ADM_fina[GIDs])
 M1.mb.tag_set_data(P_TPFA_tag,M1.all_volumes,SOL_TPFA[GIDs])
 M1.mb.tag_set_data(perm_xx_tag,M1.all_volumes,np.array(perms_xx))
 
-n1, n2 = ADM_mesh(np.concatenate([volumes_n, volumes_d]))
+print(max(abs((SOL_ADM_fina-SOL_TPFA)/SOL_TPFA))*100,np.linalg.norm(SOL_ADM_fina-SOL_TPFA)/np.linalg.norm(SOL_TPFA),"erro max percentual e norma l2")
+
 
 av=M1.mb.create_meshset()
 M1.mb.add_entities(av,M1.all_volumes)

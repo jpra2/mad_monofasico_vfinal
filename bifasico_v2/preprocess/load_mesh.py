@@ -137,7 +137,7 @@ class LoadADMMesh:
                 'VOLUME', 'SAT', 'FW', 'LAMB_W', 'LAMB_O', 'LBT', 'MOBI_IN_FACES',
                 'FW_IN_FACES', 'TOTAL_FLUX', 'FLUX_W', 'FLUX_IN_FACES', 'S_GRAV',
                 'S_GRAV_VOLUME', 'DFDS', 'GAMAV', 'GAMAF', 'VOLUME', 'PF','PMS2',
-                'PCORR2', 'NODES']
+                'PCORR2', 'NODES', 'l3_ID_last']
 
     @staticmethod
     def load_tags(mb):
@@ -228,6 +228,12 @@ class LoadADMMesh:
 
         for name in n3:
             tags[name] = mb.tag_get_handle(name, 3, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
+
+        n4 = ['l3_ID_last']
+
+        for name in n4:
+            tags[name] = mb.tag_get_handle(name, 1, types.MB_TYPE_INTEGER, types.MB_TAG_SPARSE, True)
+
 
         coords = mb.get_coords(all_nodes)
         # coords = coords.reshape([len(all_nodes), 3])
