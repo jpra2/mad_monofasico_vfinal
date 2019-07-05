@@ -27,7 +27,6 @@ class SolAdm:
         self.gravity = mesh.gravity
         self.all_boundary_faces = mesh.all_boundary_faces
         self.bound_faces_nv = mesh.bound_faces_nv
-        import pdb; pdb.set_trace()
         self.all_faces_in = mesh.all_faces_in
         self.av = mesh.vv
         self.finos0 = mesh.finos0

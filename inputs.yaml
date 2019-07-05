@@ -1,8 +1,8 @@
-input_name: '30x30x45'
+input_name: '27x27x27'
 
-nx: 30
-ny: 30
-nz: 45
+nx: 27
+ny: 27
+nz: 27
 
 lx: 20
 ly: 10

@@ -494,8 +494,6 @@ y1=ny*ly
 z1=nz*lz
 
 
-
-
 testar_MPFA=False
 MPFA_NO_NIVEL_2=True
 calc_TPFA=True
@@ -532,7 +530,7 @@ bvn = np.array([np.array([0.0, 0.0, 0.0]), np.array([x1, ly, z1])])'''
 # bvd = np.array([np.array([x1-lx, 0.0, 0.0]), np.array([x1, y1, lz])])
 # bvn = np.array([np.array([0.0, 0.0, z1-lz]), np.array([lx, y1, z1])])
 # bvn = np.array([np.array([x1-lx, y1-ly, z1-22*lz]), np.array([x1, y1, z1-9*lz])])###################
-bvn = np.array([np.array([x1-lx, y1-ly,0]), np.array([x1, y1, z1])])
+bvn = np.array([np.array([x1-lx, y1-ly,0.0]), np.array([x1, y1, z1])])
 bvd = np.array([np.array([0.0, 0.0, 0.0]), np.array([lx, ly, z1])])
 '''
 bvn = np.array([np.array([x1-lx, y1-ly, 0.0]), np.array([x1, y1, z1])])   ############ Usar esse exemplo
@@ -557,7 +555,7 @@ bvin = np.array([np.array([bvn[0][0]-r1, bvn[0][1]-r1, bvn[0][2]-r1]), np.array(
 volumes_d, inds_vols_d= get_box(M1.all_volumes, all_centroids, bvd, True)
 
 # volumes com vazao prescrita
-
+import pdb; pdb.set_trace()
 volumes_n1, inds_vols_n = get_box(M1.all_volumes, all_centroids, bvn, True)
 volumes_n2, lixo=get_box(M1.all_volumes, all_centroids, bvn2, True)
 volumes_n=rng.unite(volumes_n1,volumes_n2)
@@ -1855,11 +1853,12 @@ ID_global=M1.mb.tag_get_data(M1.ID_reordenado_tag,volumes_d, flat=True)
 T[ID_global]=scipy.sparse.csc_matrix((len(ID_global),T.shape[0]))
 T[ID_global,ID_global]=np.ones(len(ID_global))
 ########################## apagar para usar pressão-vazão
+
 if so_pressao:
     ID_globaln=M1.mb.tag_get_data(M1.ID_reordenado_tag,volumes_n, flat=True)
     T[ID_globaln]=scipy.sparse.csc_matrix((len(ID_globaln),T.shape[0]))
     T[ID_globaln,ID_globaln]=np.ones(len(ID_globaln))
-    ##################################################fim_cond contorno#############
+    # []##################################################fim_cond contorno#############
 
 #############################################################################
 LIN_tag=M1.mb.tag_get_handle("LIN_tag", 1, types.MB_TYPE_DOUBLE, types.MB_TAG_SPARSE, True)
